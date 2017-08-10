@@ -33,6 +33,12 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
+	"time"
+)
+
+var (
+	check = make(chan int, 1)
 )
 
 func main() {
@@ -50,12 +56,21 @@ func main() {
 		panic(err)
 	}
 	defer conn.Close()
+	go handlerClient(conn)
+
+	tick := time.Tick(2 * time.Minute)
 	for {
-		handlerClient(conn)
+		select {
+		case <-tick:
+			os.Exit(1)
+		case <-check:
+			tick = time.Tick(2 * time.Minute)
+		}
 	}
 }
 
 func handlerClient(conn *net.UDPConn) {
+
 	data := make([]byte, 1024)
 	_, remoteAddr, err := conn.ReadFromUDP(data)
 	if err != nil {
@@ -63,5 +78,6 @@ func handlerClient(conn *net.UDPConn) {
 		return
 	}
 
+	check <- 1
 	conn.WriteToUDP([]byte("a"), remoteAddr)
 }
