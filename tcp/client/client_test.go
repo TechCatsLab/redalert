@@ -37,17 +37,16 @@ import (
 func BenchmarkTcpClient(b *testing.B) {
 	group := &sync.WaitGroup{}
 	b.StopTimer()
-	for i := 0; i < 101; i++ {
+	for i := 0; i < 50; i++ {
 		TcpClient()
 	}
 
-	group.Add(100)
+	group.Add(50)
 	b.StartTimer()
-	for j := 0; j < 100; j++ {
+	for j := 0; j < 50; j++ {
+		temp := j
 		go func() {
-			for i := 0; i < b.N; i++ {
-				WriteMessage(Connection[j])
-			}
+			WriteMessage(Connection[temp], b.N)
 
 			group.Done()
 		}()

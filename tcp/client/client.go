@@ -70,17 +70,19 @@ func ReadMessage(conn *net.TCPConn) {
 	}
 }
 
-func WriteMessage(conn *net.TCPConn) {
-	b := []byte("yusakkurbaebi\n")
-	_, err := conn.Write(b)
+func WriteMessage(conn *net.TCPConn, n int) {
+	for i := 0; i < n; i++ {
+		b := []byte("yusakkurbaebi\n")
+		_, err := conn.Write(b)
 
-	if err != nil {
-		fmt.Println("client write error:", err)
-		return
-	}
-	_, err = conn.Read(bytebuf)
-	if err != nil {
-		fmt.Println("client read error:", err)
-		return
+		if err != nil {
+			fmt.Println("client write error:", err)
+			return
+		}
+		_, err = conn.Read(bytebuf)
+		if err != nil {
+			fmt.Println("client read error:", err)
+			return
+		}
 	}
 }

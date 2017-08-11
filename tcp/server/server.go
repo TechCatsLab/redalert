@@ -75,7 +75,8 @@ func tcpReadPipe(conn *net.TCPConn) {
 	for {
 		_, err := reader.ReadString('\n')
 		if err != nil {
-			continue
+			fmt.Println("[ERROR]:", err)
+			return
 		}
 		fmt.Println("things", ipStr)
 		tcpWritePipe(conn)
