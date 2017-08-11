@@ -30,15 +30,15 @@
 package client
 
 import (
-	"testing"
 	"sync"
+	"testing"
 )
 
-func BenchmarkOneClient(b *testing.B) {
+func BenchmarkUdpClient(b *testing.B) {
 	group := &sync.WaitGroup{}
 	b.StopTimer()
 	for i := 0; i < 51; i++ {
-		Client()
+		UdpClient()
 	}
 
 	group.Add(50)
@@ -48,7 +48,7 @@ func BenchmarkOneClient(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				WriteTo(Connection[j])
 			}
-
+			Connection[j].Close()
 			group.Done()
 		}()
 	}

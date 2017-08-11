@@ -40,7 +40,7 @@ var (
 )
 
 // Client 创建一个 UDP 连接
-func Client() {
+func UdpClient() {
 	addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:3017")
 
 	if err != nil {
