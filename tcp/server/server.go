@@ -32,9 +32,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"time"
-	"io"
 )
 
 func main() {

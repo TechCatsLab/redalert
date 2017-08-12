@@ -30,16 +30,16 @@
 package client
 
 import (
-	"fmt"
-	"net"
-	"io"
 	"bufio"
+	"fmt"
+	"io"
+	"net"
 )
 
 type TcpClient struct {
 	RemoteAddr *net.TCPAddr
 	Conn       *net.TCPConn
-	MsgQueue   chan string
+	MsgQueue   chan []byte
 }
 
 func NewTcpClient(remoteAddr string) (*TcpClient, error) {
@@ -50,7 +50,7 @@ func NewTcpClient(remoteAddr string) (*TcpClient, error) {
 		return nil, err
 	}
 
-	return &TcpClient{RemoteAddr: tcpAddr, MsgQueue: make(chan string, 1024)}, nil
+	return &TcpClient{RemoteAddr: tcpAddr, MsgQueue: make(chan []byte, 1024)}, nil
 }
 
 func (cli *TcpClient) DialTcp() error {
@@ -63,12 +63,12 @@ func (cli *TcpClient) DialTcp() error {
 		reader := bufio.NewReader(cli.Conn)
 		for {
 			msg, err := reader.ReadString('\n')
-			if err != nil && err != io.EOF{
+			if err != nil && err != io.EOF {
 				cli.Reconnection()
 			}
 
 			if msg != "" {
-				cli.MsgQueue <- msg
+				cli.MsgQueue <- []byte(msg)
 			}
 		}
 	}()

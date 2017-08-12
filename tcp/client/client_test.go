@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	Connection [] *TcpClient
+	Connection []*TcpClient
 	remoteAddr = "127.0.0.1:9999"
 	writeMsg   = "you are the pretty sunshine of my eye\n"
 )
