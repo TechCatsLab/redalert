@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"io"
 )
 
 func main() {
@@ -73,12 +74,15 @@ func tcpReadPipe(conn *net.TCPConn) {
 
 	reader := bufio.NewReader(conn)
 	for {
-		_, err := reader.ReadString('\n')
-		if err != nil {
+		msg, err := reader.ReadString('\n')
+		if err != nil && err != io.EOF {
 			fmt.Println("[ERROR]:", err)
-			return
+			continue
 		}
-		fmt.Println("things", ipStr)
+
+		if msg != "" {
+			fmt.Println("remoteAddr:", conn.RemoteAddr(), "msg:", msg)
+		}
 		tcpWritePipe(conn)
 	}
 }
