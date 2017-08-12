@@ -30,59 +30,69 @@
 package client
 
 import (
-	"bufio"
 	"fmt"
 	"net"
+	"io"
+	"bufio"
 )
 
-var (
-	Connection []*net.TCPConn
-	bytebuf    []byte
-)
+type TcpClient struct {
+	RemoteAddr *net.TCPAddr
+	Conn       *net.TCPConn
+	MsgQueue   chan string
+}
 
-func TcpClient() {
-	var tcpAddr *net.TCPAddr
-
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
+func NewTcpClient(remoteAddr string) (*TcpClient, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
 	if err != nil {
 		fmt.Println("Resolve tcp addr error:", err)
-		panic(err)
+
+		return nil, err
 	}
 
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		fmt.Println("Dial tcp error:", err)
-		panic(err)
-	}
-
-	fmt.Println(conn.LocalAddr())
-	Connection = append(Connection, conn)
+	return &TcpClient{RemoteAddr: tcpAddr, MsgQueue: make(chan string, 1024)}, nil
 }
 
-func ReadMessage(conn *net.TCPConn) {
-	reader := bufio.NewReader(conn)
-	for {
-		msg, err := reader.ReadString('\n')
-		if err != nil {
-			break
-		}
-		fmt.Println(msg)
+func (cli *TcpClient) DialTcp() error {
+	conn, err := net.DialTCP("tcp", nil, cli.RemoteAddr)
+	if err == nil {
+		cli.Conn = conn
 	}
+
+	go func() {
+		reader := bufio.NewReader(cli.Conn)
+		for {
+			msg, err := reader.ReadString('\n')
+			if err != nil && err != io.EOF{
+				cli.Reconnection()
+			}
+
+			if msg != "" {
+				cli.MsgQueue <- msg
+			}
+		}
+	}()
+
+	return err
 }
 
-func WriteMessage(conn *net.TCPConn, n int) {
-	for i := 0; i < n; i++ {
-		b := []byte("yusakkurbaebi\n")
-		_, err := conn.Write(b)
+func (cli *TcpClient) ReadMessage() {
+	go func() {
+		for {
+			select {
+			case <-cli.MsgQueue:
+				// do something with the msg in channel
+			}
+		}
+	}()
+}
 
-		if err != nil {
-			fmt.Println("client write error:", err)
-			return
-		}
-		_, err = conn.Read(bytebuf)
-		if err != nil {
-			fmt.Println("client read error:", err)
-			return
-		}
-	}
+func (cli *TcpClient) WriteMessage(msg string) error {
+	_, err := cli.Conn.Write([]byte(msg))
+
+	return err
+}
+
+func (cli *TcpClient) Reconnection() error {
+	return cli.DialTcp()
 }
