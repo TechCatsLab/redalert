@@ -30,21 +30,31 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"os"
-	"time"
+
+	"redalert/udp/protocal"
 )
 
 var (
-	check = make(chan int, 1)
+	close = make(chan struct{}, 1)
 )
 
-func main() {
-	flag.Parse()
+type Service struct {
+	Conn *net.UDPConn
+}
 
-	addr, err := net.ResolveUDPAddr("udp", ":3017")
+func NewService(port string) *Service {
+	var udpPort string
+
+	if port == "" {
+		udpPort = ":" + protocal.DefaultUDPPort
+	} else {
+		udpPort = ":" + port
+	}
+
+	addr, err := net.ResolveUDPAddr("udp", udpPort)
 	if err != nil {
 		fmt.Println("Can't resolve addr:", err.Error())
 		panic(err)
@@ -56,28 +66,25 @@ func main() {
 		panic(err)
 	}
 	defer conn.Close()
-	go handlerClient(conn)
 
-	tick := time.Tick(2 * time.Minute)
+	server := &Service{
+		Conn: conn,
+	}
+
+	go server.handlerClient()
+
+	return server
+}
+
+func (c *Service) handlerClient() {
 	for {
 		select {
-		case <-tick:
+		case <-close:
 			os.Exit(1)
-		case <-check:
-			tick = time.Tick(2 * time.Minute)
 		}
 	}
 }
 
-func handlerClient(conn *net.UDPConn) {
-
-	data := make([]byte, 1024)
-	_, remoteAddr, err := conn.ReadFromUDP(data)
-	if err != nil {
-		fmt.Println("read udp msg failed with:", err.Error())
-		return
-	}
-
-	check <- 1
-	conn.WriteToUDP([]byte("a"), remoteAddr)
+func Close() {
+	close <- struct{}{}
 }

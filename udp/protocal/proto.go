@@ -28,4 +28,7 @@ const (
 	PackCountOffset   = PackSizeOffset + PackSize
 	PackOrderOffset   = PackCountOffset + PackCountSize
 	FileNameOffset    = PackOrderOffset + PackOrderSize
+
+	// default port
+	DefaultUDPPort = "17120"
 )
