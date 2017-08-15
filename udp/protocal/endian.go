@@ -29,7 +29,11 @@
 
 package protocal
 
-// Int16 字节转 int16 类型
+import (
+	"bytes"
+)
+
+// Int16 - 字节转 int16 类型
 func Int16(b []byte) int16 { return int16(b[1]) | int16(b[0])<<8 }
 
 // PutInt16 int16 转字节数组
@@ -38,12 +42,12 @@ func PutInt16(b []byte, v int16) {
 	b[1] = byte(v)
 }
 
-// Int32 字节转 int32 类型
+// Int32 - 字节转 int32 类型
 func Int32(b []byte) int32 {
 	return int32(b[3]) | int32(b[2])<<8 | int32(b[1])<<16 | int32(b[0])<<24
 }
 
-// PutInt32 int32 转字节数组
+// PutInt32 - int32 转字节数组
 func PutInt32(b []byte, v int32) {
 	b[0] = byte(v >> 24)
 	b[1] = byte(v >> 16)
@@ -56,7 +60,7 @@ func Int64(b []byte) int64 {
 	return int64(b[7]) | int64(b[6])<<8 | int64(b[5])<<16 | int64(b[4])<<24 | int64(b[3]<<32) | int64(b[2])<<40 | int64(b[1])<<48 | int64(b[0])<<56
 }
 
-// PutInt64 int64 转字节数组
+// PutInt64 - int64 转字节数组
 func PutInt64(b []byte, v int64) {
 	b[0] = byte(v >> 56)
 	b[1] = byte(v >> 48)
@@ -66,4 +70,10 @@ func PutInt64(b []byte, v int64) {
 	b[5] = byte(v >> 16)
 	b[6] = byte(v >> 8)
 	b[7] = byte(v)
+}
+
+// PutString - 把字符串写到 byte 数组中
+func PutString(b []byte, str string) {
+	buf := bytes.NewBuffer(b)
+	buf.WriteString(str)
 }

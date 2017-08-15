@@ -40,6 +40,8 @@ const (
 	PackOrderSize   = 4
 	FixedHeaderSize = HeaderTypeSize + HeaderSize + FileSize + PackSize + PackCountSize + PackOrderSize
 
+	ReplySize = 1
+
 	RawHeaderSize    = int32(1<<6) - 1
 	ReqRawHeaderSize = int32(1<<8) - 1
 
