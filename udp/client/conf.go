@@ -29,40 +29,10 @@
 
 package client
 
-import (
-	"fmt"
-	"net"
-)
-
-// Client - UDP Client
-type Client struct {
-	conf    *Conf
-	conn    *net.UDPConn
-	handler Handler
-}
-
-// NewClient 创建一个 UDP 客户端
-func NewClient(conf *Conf, handler Handler) (*Client, error) {
-	addr, err := net.ResolveUDPAddr("udp", conf.RemoteAddress+":"+conf.RemotePort)
-	if err != nil {
-		fmt.Println("Can't resolve address: ", err)
-
-		return nil, err
-	}
-
-	conn, err := net.DialUDP("udp", nil, addr)
-
-	if err != nil {
-		fmt.Println("Can't dial: ", err)
-
-		return nil, err
-	}
-
-	client := Client{
-		conf:    conf,
-		conn:    conn,
-		handler: handler,
-	}
-
-	return &client, nil
+type Conf struct {
+	LocalAddress  string // Local Address
+	LocalPort     string // Local Port
+	RemoteAddress string // Remote Address
+	RemotePort    string // Remote Port
+	PacketSize    int    // Packet max size
 }

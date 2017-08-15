@@ -24,34 +24,13 @@
 
 /*
  * Revision History:
- *     Initial: 2017/08/10        Sun Anxiang
+ *     Initial: 2017/08/10        Liu Jiachang
  */
 
 package client
 
-import (
-	"sync"
-	"testing"
-)
-
-func BenchmarkUdpClient(b *testing.B) {
-	group := &sync.WaitGroup{}
-	b.StopTimer()
-	for i := 0; i < 51; i++ {
-		UdpClient()
-	}
-
-	group.Add(50)
-	b.StartTimer()
-	for j := 0; j < 50; j++ {
-		go func() {
-			for i := 0; i < b.N; i++ {
-				WriteTo(Connection[j])
-			}
-			Connection[j].Close()
-			group.Done()
-		}()
-	}
-
-	group.Wait()
+type Handler interface {
+	OnReceive() error
+	OnSend() error
+	OnError(error) error
 }
