@@ -27,25 +27,32 @@
  *     Initial: 2017/08/10        Yusan Kurban
  */
 
-package main
+package server
 
 import (
 	"fmt"
 	"net"
-	"os"
 
 	"redalert/udp/protocal"
 )
 
-var (
-	close = make(chan struct{}, 1)
-)
-
-type Service struct {
-	Conn *net.UDPConn
+// Packet represent a UDP packet
+type Packet struct {
+	Body   []byte
+	Size   int
+	Remote *net.UDPAddr
 }
 
-func NewService(port string) *Service {
+// Service is a UDP service
+type Service struct {
+	Conn    *net.UDPConn
+	handler Handler
+	sender  chan *Packet
+	close   chan struct{}
+}
+
+// NewService start a new UDP service
+func NewService(port string, handler Handler) (*Service, error) {
 	var udpPort string
 
 	if port == "" {
@@ -57,34 +64,62 @@ func NewService(port string) *Service {
 	addr, err := net.ResolveUDPAddr("udp", udpPort)
 	if err != nil {
 		fmt.Println("Can't resolve addr:", err.Error())
-		panic(err)
+		return nil, err
 	}
 
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		fmt.Println("listen error:", err.Error())
-		panic(err)
+		return nil, err
 	}
-	defer conn.Close()
 
 	server := &Service{
-		Conn: conn,
+		Conn:    conn,
+		handler: handler,
+		sender:  make(chan *Packet),
+		close:   make(chan struct{}),
 	}
 
 	go server.handlerClient()
 
-	return server
+	return server, nil
 }
 
 func (c *Service) handlerClient() {
 	for {
 		select {
-		case <-close:
-			os.Exit(1)
+		case <-c.close:
+			c.Conn.Close()
+
+		case pack := <-c.sender:
+			err := pack.WriteToUDP(c.Conn)
+
+			if err != nil {
+				c.handler.OnError(err)
+			}
 		}
 	}
 }
 
-func Close() {
-	close <- struct{}{}
+// Close close current service
+func (c *Service) Close() {
+	c.close <- struct{}{}
+}
+
+// Send send a packet to remote
+func (c *Service) Send(body []byte, remote *net.UDPAddr) {
+	pack := &Packet{
+		Body:   body,
+		Size:   len(body),
+		Remote: remote,
+	}
+
+	c.sender <- pack
+}
+
+// WriteToUDP write packet to UDP
+func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
+	_, err := conn.WriteToUDP(p.Body[:p.Size], p.Remote)
+
+	return err
 }
