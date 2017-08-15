@@ -36,29 +36,40 @@ import (
 	"redalert/udp/protocal"
 )
 
-// Packet represent a UDP packet
-type Packet struct {
-	Body   []byte
-	Size   int
-	Remote *net.UDPAddr
+const (
+	defaultReadBuffer  = 65536
+	defaultWriteBuffer = 65536
+)
+
+// Conf represents the UDP server configuration, such as IP, port, etc.
+type Conf struct {
+	Address    string // Local Address
+	Port       string // Local Port
+	PacketSize int    // Packet max size
+	CacheCount int    // Cache size
 }
+
+// RemoteAddr is real time map where storage client address and filename
+var RemoteAddr map[*net.UDPAddr]string
 
 // Service is a UDP service
 type Service struct {
-	Conn    *net.UDPConn
+	conf    *Conf
+	conn    *net.UDPConn
 	handler Handler
+	buffer  []*Packet
 	sender  chan *Packet
 	close   chan struct{}
 }
 
 // NewService start a new UDP service
-func NewService(port string, handler Handler) (*Service, error) {
+func NewService(conf *Conf, handler Handler) (*Service, error) {
 	var udpPort string
 
-	if port == "" {
+	if conf.Port == "" {
 		udpPort = ":" + protocal.DefaultUDPPort
 	} else {
-		udpPort = ":" + port
+		udpPort = conf.Address + ":" + conf.Port
 	}
 
 	addr, err := net.ResolveUDPAddr("udp", udpPort)
@@ -73,12 +84,17 @@ func NewService(port string, handler Handler) (*Service, error) {
 		return nil, err
 	}
 
+	RemoteAddr = make(map[*net.UDPAddr]string)
+
 	server := &Service{
-		Conn:    conn,
+		conf:    conf,
+		conn:    conn,
 		handler: handler,
+		buffer:  make([]*Packet, conf.PacketSize),
 		sender:  make(chan *Packet),
 		close:   make(chan struct{}),
 	}
+	server.prepare()
 
 	go server.handlerClient()
 
@@ -86,18 +102,29 @@ func NewService(port string, handler Handler) (*Service, error) {
 }
 
 func (c *Service) handlerClient() {
+	go c.receive()
+
 	for {
 		select {
 		case <-c.close:
-			c.Conn.Close()
+			c.conn.Close()
 
 		case pack := <-c.sender:
-			err := pack.WriteToUDP(c.Conn)
+			err := pack.WriteToUDP(c.conn)
 
 			if err != nil {
 				c.handler.OnError(err)
 			}
 		}
+	}
+}
+
+func (c *Service) prepare() {
+	c.conn.SetReadBuffer(defaultReadBuffer)
+	c.conn.SetWriteBuffer(defaultWriteBuffer)
+
+	for i := 0; i < c.conf.CacheCount; i++ {
+		c.buffer[i] = NewPacket(c.conf.PacketSize)
 	}
 }
 
@@ -117,9 +144,23 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 	c.sender <- pack
 }
 
-// WriteToUDP write packet to UDP
-func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
-	_, err := conn.WriteToUDP(p.Body[:p.Size], p.Remote)
+func (c *Service) receive() {
+	index := 0
+	cap := c.conf.CacheCount
 
-	return err
+	for {
+		// Pick a packet and reset it for receiving.
+		packet := c.buffer[index]
+		packet.Reset()
+
+		err := packet.Read(c.conn)
+
+		if err != nil {
+			c.handler.OnError(err)
+		} else {
+			c.handler.OnPacket(packet)
+		}
+
+		index = (index + 1) % cap
+	}
 }
