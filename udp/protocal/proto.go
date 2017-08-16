@@ -62,6 +62,9 @@ const (
 	// define HeaderType
 	HeaderRequestType = 0x10
 	HeaderFileType    = 0x20
+
+	// DefaultDir is default dir for save file
+	DefaultDir = "~/"
 )
 
 type Proto struct {

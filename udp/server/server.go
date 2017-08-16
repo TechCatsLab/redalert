@@ -32,6 +32,7 @@ package server
 import (
 	"fmt"
 	"net"
+	"os"
 
 	"redalert/udp/protocal"
 )
@@ -49,9 +50,6 @@ type Conf struct {
 	CacheCount int    // Cache size
 }
 
-// RemoteAddr is real time map where storage client address and filename
-var RemoteAddr map[*net.UDPAddr]string
-
 // Service is a UDP service
 type Service struct {
 	conf    *Conf
@@ -59,11 +57,19 @@ type Service struct {
 	handler Handler
 	buffer  []*Packet
 	sender  chan *Packet
+	remote  map[*net.UDPAddr]*Remote
 	close   chan struct{}
 }
 
-// NewService start a new UDP service
-func NewService(conf *Conf, handler Handler) (*Service, error) {
+// Remote -
+type Remote struct {
+	FileName  string
+	File      *os.File
+	PackCount int32
+}
+
+// NewServer start a new UDP service
+func NewServer(conf *Conf, handler Handler) (*Service, error) {
 	var udpPort string
 
 	if conf.Port == "" {
@@ -84,14 +90,13 @@ func NewService(conf *Conf, handler Handler) (*Service, error) {
 		return nil, err
 	}
 
-	RemoteAddr = make(map[*net.UDPAddr]string)
-
 	server := &Service{
 		conf:    conf,
 		conn:    conn,
 		handler: handler,
 		buffer:  make([]*Packet, conf.PacketSize),
 		sender:  make(chan *Packet),
+		remote:  make(map[*net.UDPAddr]*Remote),
 		close:   make(chan struct{}),
 	}
 	server.prepare()
