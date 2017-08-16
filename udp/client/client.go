@@ -78,7 +78,7 @@ func NewClient(conf *Conf, handler Handler) (*Client, error) {
 	return &client, nil
 }
 
-func (c *Client) prepareFile(f string) error {
+func (c *Client) PrepareFile(f string) error {
 	var packCount int32
 
 	file, err := os.Open(f)
@@ -123,10 +123,12 @@ func (c *Client) StartRun() (err error) {
 		}
 	}()
 
-	err = c.WriteFirst()
+	err = c.writeFirst()
 	if err != nil {
 		return
 	}
+
+	c.convertHeadType()
 
 	_, err = c.conn.Read(c.replyByte)
 	if err != nil {
@@ -135,7 +137,7 @@ func (c *Client) StartRun() (err error) {
 
 	if c.replyByte[0] == protocal.ReplyOk {
 		for i := int32(1); ; i++ {
-			err = c.WriteFile(i)
+			err = c.writeFile(i)
 			if err != nil {
 				return
 			}
@@ -160,7 +162,7 @@ func (c *Client) StartRun() (err error) {
 }
 
 // WriteFirst - 第一次连接服务器，商量协议
-func (c *Client) WriteFirst() error {
+func (c *Client) writeFirst() error {
 	c.headBytes[0] = byte(protocal.HeaderRequestType)
 	protocal.PutInt16(c.headBytes[protocal.HeaderSizeOffset:], c.proto.HeaderSize)
 	protocal.PutInt64(c.headBytes[protocal.FileSizeOffset:], c.proto.FileSize)
@@ -178,8 +180,8 @@ func (c *Client) convertHeadType() {
 	c.headBytes[0] = byte(protocal.HeaderFileType)
 }
 
-// WriteFile - 开始向服务器发送文件
-func (c *Client) WriteFile(order int32) error {
+// writeFile - 开始向服务器发送文件
+func (c *Client) writeFile(order int32) error {
 	protocal.PutInt32(c.headBytes[protocal.PackOrderOffset:], order)
 	_, err := c.file.Read(c.headBytes[protocal.FixedHeaderSize:])
 
