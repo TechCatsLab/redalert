@@ -66,6 +66,9 @@ const (
 	// ReplyOk - define ReplyType
 	ReplyOk = 10
 	ReplyNo = 5
+
+	// DefaultDir is default dir for save file
+	DefaultDir = "~/"
 )
 
 type Proto struct {

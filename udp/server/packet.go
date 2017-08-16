@@ -29,7 +29,13 @@
 
 package server
 
-import "net"
+import (
+	"errors"
+	"net"
+	"os"
+
+	"redalert/udp/protocal"
+)
 
 // Packet represent a UDP packet
 type Packet struct {
@@ -37,6 +43,14 @@ type Packet struct {
 	Size   int
 	Remote *net.UDPAddr
 }
+
+var (
+	ErrDuplicated      = errors.New("Duplicated request for one file")
+	ErrDiffrentFile    = errors.New("Client try to send multi file")
+	ErrInvalidFilePack = errors.New("Invalid file packet")
+	ErrInvalidOrder    = errors.New("Invalid pack order")
+	ErrWrite           = errors.New("write file fail")
+)
 
 // NewPacket generates a Packet with a len([]byte) == cap.
 func NewPacket(cap int) *Packet {
@@ -71,4 +85,62 @@ func (p *Packet) Read(conn *net.UDPConn) error {
 func (p *Packet) Reset() {
 	p.Size = 0
 	p.Remote = nil
+}
+
+func (p *Packet) handleRequest(s *Service) (err error) {
+	headerSize := protocal.Int16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset])
+	filename := string(p.Body[protocal.FileNameOffset : headerSize-protocal.FixedHeaderSize])
+
+	if rem, ok := s.remote[p.Remote]; ok {
+		if filename != rem.FileName {
+			err = ErrDiffrentFile
+			return
+		}
+
+		err = ErrDuplicated
+		return
+	}
+
+	file, err := os.OpenFile(protocal.DefaultDir+filename, 0, 0666)
+	if err != nil {
+		return
+	}
+
+	s.remote[p.Remote] = &Remote{
+		FileName: filename,
+		File:     file,
+	}
+
+	return nil
+}
+
+func (p *Packet) handleFilePacket(s *Service) error {
+	rem, ok := checkpack(p.Remote, s)
+	if !ok {
+		return ErrInvalidFilePack
+	}
+
+	packOrder := protocal.Int32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
+	if packOrder-rem.PackCount > 1 {
+		return ErrInvalidOrder
+	}
+
+	realBody := p.Body[protocal.FixedHeaderSize:]
+
+	n, err := rem.File.Write(realBody)
+	if err != nil {
+		return err
+	}
+
+	if n < len(realBody) {
+		return ErrWrite
+	}
+
+	return nil
+}
+
+func checkpack(addr *net.UDPAddr, s *Service) (*Remote, bool) {
+	remote, ok := s.remote[addr]
+
+	return remote, ok
 }
