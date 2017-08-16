@@ -31,7 +31,7 @@
 package protocal
 
 const (
-	// Header Size
+	// HeaderTypeSize - Header Size
 	HeaderTypeSize  = 1
 	HeaderSize      = 2
 	FileSize        = 8
@@ -47,7 +47,7 @@ const (
 
 	ReqFileNameSize = ReqRawHeaderSize - FixedHeaderSize
 
-	// Offset
+	// HeaderTypeOffset - Offset
 	HeaderTypeOffset = 0
 	HeaderSizeOffset = HeaderTypeOffset + HeaderTypeSize
 	FileSizeOffset   = HeaderSizeOffset + HeaderSize
@@ -56,12 +56,16 @@ const (
 	PackOrderOffset  = PackCountOffset + PackCountSize
 	FileNameOffset   = PackOrderOffset + PackOrderSize
 
-	// default port
+	// DefaultUDPPort - default port
 	DefaultUDPPort = "17120"
 
-	// define HeaderType
+	// HeaderRequestType - define HeaderType
 	HeaderRequestType = 0x10
 	HeaderFileType    = 0x20
+
+	// ReplyOk - define ReplyType
+	ReplyOk = 10
+	ReplyNo = 5
 )
 
 type Proto struct {

@@ -30,7 +30,8 @@
 package client
 
 import (
-	"fmt"
+	"io"
+	"log"
 	"net"
 	"os"
 
@@ -44,7 +45,6 @@ type Client struct {
 	handler   Handler
 	replyByte []byte
 	headBytes []byte
-	fileBytes []byte
 	file      *os.File
 	proto     *protocal.Proto
 	fileInfo  os.FileInfo
@@ -54,7 +54,7 @@ type Client struct {
 func NewClient(conf *Conf, handler Handler) (*Client, error) {
 	addr, err := net.ResolveUDPAddr("udp", conf.RemoteAddress+":"+conf.RemotePort)
 	if err != nil {
-		fmt.Println("Can't resolve address: ", err)
+		log.Println("Can't resolve address: ", err)
 
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewClient(conf *Conf, handler Handler) (*Client, error) {
 	conn, err := net.DialUDP("udp", nil, addr)
 
 	if err != nil {
-		fmt.Println("Can't dial: ", err)
+		log.Println("Can't dial: ", err)
 
 		return nil, err
 	}
@@ -72,15 +72,91 @@ func NewClient(conf *Conf, handler Handler) (*Client, error) {
 		conn:      conn,
 		handler:   handler,
 		replyByte: make([]byte, protocal.ReplySize),
-		headBytes: make([]byte, protocal.FixedHeaderSize),
+		headBytes: make([]byte, conf.PacketSize),
 	}
 
 	return &client, nil
 }
 
-// StartRun - Client start run
-func (c *Client) StartRun() {
+func (c *Client) prepareFile(f string) error {
+	var packCount int32
 
+	file, err := os.Open(f)
+	if err != nil {
+		log.Fatal(err)
+
+		return err
+	}
+
+	fileInfo, err := os.Stat(f)
+	if err != nil {
+		log.Fatal(err)
+
+		return err
+	}
+
+	c.file = file
+	c.fileInfo = fileInfo
+
+	if fileInfo.Size()%int64(c.conf.PacketSize) != 0 {
+		packCount = int32(fileInfo.Size()/int64(c.conf.PacketSize)) + 1
+	} else {
+		packCount = int32(fileInfo.Size() / int64(c.conf.PacketSize))
+	}
+
+	c.proto = &protocal.Proto{
+		HeaderSize: int16(protocal.FixedHeaderSize + len(fileInfo.Name())),
+		FileSize:   fileInfo.Size(),
+		PackSize:   int16(c.conf.PacketSize),
+		PackCount:  packCount,
+		PackOrder:  0,
+	}
+
+	return nil
+}
+
+// StartRun - Client start run
+func (c *Client) StartRun() (err error) {
+	defer func() {
+		if err != nil {
+			log.Fatal("StartRun - error：", err)
+		}
+	}()
+
+	err = c.WriteFirst()
+	if err != nil {
+		return
+	}
+
+	_, err = c.conn.Read(c.replyByte)
+	if err != nil {
+		log.Fatal("StartRun - 文件传输错误：", err)
+	}
+
+	if c.replyByte[0] == protocal.ReplyOk {
+		for i := int32(1); ; i++ {
+			err = c.WriteFile(i)
+			if err != nil {
+				return
+			}
+
+			_, err = c.conn.Read(c.replyByte)
+			if err != nil {
+				log.Fatal("StartRun - 文件传输错误：", err)
+				return
+			}
+
+			if c.replyByte[0] == protocal.ReplyOk {
+				continue
+			}
+
+			log.Println("Server return incorrent.")
+
+			return
+		}
+	}
+
+	return
 }
 
 // WriteFirst - 第一次连接服务器，商量协议
@@ -96,4 +172,36 @@ func (c *Client) WriteFirst() error {
 	_, err := c.conn.Write(c.headBytes)
 
 	return err
+}
+
+func (c *Client) convertHeadType() {
+	c.headBytes[0] = byte(protocal.HeaderFileType)
+}
+
+// WriteFile - 开始向服务器发送文件
+func (c *Client) WriteFile(order int32) error {
+	protocal.PutInt32(c.headBytes[protocal.PackOrderOffset:], order)
+	_, err := c.file.Read(c.headBytes[protocal.FixedHeaderSize:])
+
+	if err != nil {
+		if err == io.EOF {
+			log.Println("WriteFile - 传送文件结束！")
+			c.conn.Close()
+
+			return io.EOF
+		}
+
+		log.Fatal("WriteFile - 读取文件错误：", err)
+
+		return err
+	}
+
+	_, err = c.conn.Write(c.headBytes)
+	if err != nil {
+		log.Fatal("WriteFile - 文件传输错误：", err)
+
+		return err
+	}
+
+	return nil
 }

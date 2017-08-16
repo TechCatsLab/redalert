@@ -29,9 +29,8 @@
 
 package client
 
+// Conf - Client 的配置
 type Conf struct {
-	LocalAddress  string // Local Address
-	LocalPort     string // Local Port
 	RemoteAddress string // Remote Address
 	RemotePort    string // Remote Port
 	PacketSize    int    // Packet max size
