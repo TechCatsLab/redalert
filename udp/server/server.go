@@ -158,7 +158,7 @@ func (c *Service) receive() {
 		packet := c.buffer[index]
 		packet.Reset()
 
-		err := packet.Read(c.conn)
+		err := packet.Read(c)
 
 		if err != nil {
 			c.handler.OnError(err)

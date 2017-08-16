@@ -68,8 +68,8 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 	return err
 }
 
-func (p *Packet) Read(conn *net.UDPConn) error {
-	size, remote, err := conn.ReadFromUDP(p.Body)
+func (p *Packet) Read(s *Service) error {
+	size, remote, err := s.conn.ReadFromUDP(p.Body)
 
 	if err != nil {
 		return err
@@ -77,6 +77,45 @@ func (p *Packet) Read(conn *net.UDPConn) error {
 
 	p.Size = size
 	p.Remote = remote
+
+	pack := Packet{
+		Remote: p.Remote,
+		Size:   1,
+	}
+
+	headerType := int8(p.Body[0])
+	switch {
+	case headerType == protocal.HeaderRequestType:
+		err := p.handleRequest(s)
+		if err != nil {
+			pack.Body[0] = 10
+			err := pack.WriteToUDP(s.conn)
+			if err != nil {
+				return err
+			}
+		} else {
+			pack.Body[0] = 5
+			err := pack.WriteToUDP(s.conn)
+			if err != nil {
+				return err
+			}
+		}
+	case headerType == protocal.HeaderFileType:
+		err := p.handleFilePacket(s)
+		if err != nil {
+			pack.Body[0] = 10
+			err := pack.WriteToUDP(s.conn)
+			if err != nil {
+				return err
+			}
+		} else {
+			pack.Body[0] = 5
+			err := pack.WriteToUDP(s.conn)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
