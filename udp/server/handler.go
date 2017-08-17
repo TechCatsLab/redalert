@@ -29,9 +29,40 @@
 
 package server
 
+import (
+	"log"
+	"net"
+	"redalert/udp/remote"
+	"time"
+)
+
 // Handler represent operations by UDP service
 type Handler interface {
 	OnPacket(*Packet) error
-	OnError(error) error
+	OnError(error, *net.UDPAddr)
 	OnClose() error
+}
+
+// Provider provide service
+type Provider struct{}
+
+// OnError handle when encounters error
+func (s *Provider) OnError(err error, addr *net.UDPAddr) {
+	log.Fatalf("crash with error %v", err)
+	remote.Service.Remove(addr)
+}
+
+// OnPacket reset timer if receive packet success
+func (s *Provider) OnPacket(pack *Packet) error {
+	rem, ok := remote.Service.GetRemote(pack.Remote)
+	if !ok {
+		return ErrNotExists
+	}
+
+	ok = rem.Timer.Reset(3 * time.Minute)
+	if !ok {
+		return ErrReset
+	}
+
+	return nil
 }

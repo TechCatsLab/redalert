@@ -108,7 +108,7 @@ func (c *Service) handlerClient() {
 			err := pack.WriteToUDP(c.conn)
 
 			if err != nil {
-				c.handler.OnError(err)
+				c.handler.OnError(err, nil)
 			}
 		}
 	}
@@ -151,7 +151,7 @@ func (c *Service) receive() {
 		err := packet.Read(c)
 
 		if err != nil {
-			c.handler.OnError(err)
+			c.handler.OnError(err, packet.Remote)
 		} else {
 			c.handler.OnPacket(packet)
 		}

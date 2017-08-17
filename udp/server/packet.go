@@ -51,6 +51,8 @@ var (
 	ErrInvalidFilePack = errors.New("Invalid file packet")
 	ErrInvalidOrder    = errors.New("Invalid pack order")
 	ErrWrite           = errors.New("write file fail")
+	ErrReset           = errors.New("failed with reset timer")
+	ErrNotExists       = errors.New("Remote Address not exists")
 )
 
 // NewPacket generates a Packet with a len([]byte) == cap.
@@ -89,13 +91,13 @@ func (p *Packet) Read(s *Service) error {
 	case headerType == protocal.HeaderRequestType:
 		err := p.handleRequest(s)
 		if err != nil {
-			pack.Body[0] = 10
+			pack.Body[0] = protocal.ReplyNo
 			err := pack.WriteToUDP(s.conn)
 			if err != nil {
 				return err
 			}
 		} else {
-			pack.Body[0] = 5
+			pack.Body[0] = protocal.ReplyOk
 			err := pack.WriteToUDP(s.conn)
 			if err != nil {
 				return err
@@ -104,13 +106,13 @@ func (p *Packet) Read(s *Service) error {
 	case headerType == protocal.HeaderFileType:
 		err := p.handleFilePacket(s)
 		if err != nil {
-			pack.Body[0] = 10
+			pack.Body[0] = protocal.ReplyNo
 			err := pack.WriteToUDP(s.conn)
 			if err != nil {
 				return err
 			}
 		} else {
-			pack.Body[0] = 5
+			pack.Body[0] = protocal.ReplyOk
 			err := pack.WriteToUDP(s.conn)
 			if err != nil {
 				return err

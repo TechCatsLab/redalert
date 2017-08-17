@@ -43,7 +43,7 @@ type Remote struct {
 	FileName  string
 	File      *os.File
 	PackCount int32
-	timer     *time.Timer
+	Timer     *time.Timer
 }
 
 // RemoteAddrTable manege remote client address and it's transformation info
@@ -65,7 +65,7 @@ func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, count 
 			FileName:  filename,
 			File:      file,
 			PackCount: count,
-			timer: time.AfterFunc(3*time.Minute, func() {
+			Timer: time.AfterFunc(3*time.Minute, func() {
 				r.Remove(remote)
 			}),
 		}
