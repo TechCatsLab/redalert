@@ -1,4 +1,4 @@
-// Copyright © 2017 jsharkc
+// Copyright © 2017 Jsharkc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,9 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"redalert/udp/client"
 
 	"github.com/spf13/cobra"
-
-	"redalert/udp/client"
 )
 
 var (
@@ -29,15 +27,11 @@ var (
 	packSize int
 )
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "sendcli",
+// sendCmd represents the send command
+var sendCmd = &cobra.Command{
+	Use:   "send",
 	Short: "A send file tool.",
-	Long: `
-sendcli is a tool for send file, base on udp.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	Long:  `send is a tool for send file, base on udp.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 {
 			cmd.Help()
@@ -70,25 +64,11 @@ sendcli is a tool for send file, base on udp.`,
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-	// RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sendcli.yaml)")
+	RootCmd.AddCommand(sendCmd)
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	// RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	RootCmd.Flags().StringVarP(&host, "host", "H", "127.0.0.1", "Target host")
-	RootCmd.Flags().StringVarP(&port, "port", "p", "17120", "Target port")
-	RootCmd.Flags().IntVarP(&packSize, "packetSize", "s", 1024, "Every packet size")
+	// Here you will define your flags and configuration settings.
+	sendCmd.Flags().StringVarP(&host, "host", "H", "127.0.0.1", "Target host")
+	sendCmd.Flags().StringVarP(&port, "port", "p", "17120", "Target port")
+	sendCmd.Flags().IntVarP(&packSize, "packetSize", "s", 1024, "Every packet size")
 }

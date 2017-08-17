@@ -1,7 +1,7 @@
 package main
 
 import (
-	"redalert/cobra/cmd"
+	"redalert/gcp/cmd"
 )
 
 func main() {
