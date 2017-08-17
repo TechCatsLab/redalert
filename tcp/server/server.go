@@ -27,68 +27,87 @@
  *     Initial: 2017/08/11        Sun Anxiang
  */
 
-package main
+package server
 
 import (
-	"bufio"
-	"fmt"
-	"io"
 	"net"
 	"time"
+	"bytes"
+	"fmt"
 )
 
-func main() {
-	var tcpAddr *net.TCPAddr
+type TcpServer struct {
+	conf      *Conf
+	listener  *net.TCPListener
+	shutdown  chan struct{}
+	sender    chan *Msg
+	connCount int
+}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
+type Msg struct {
+	content bytes.Buffer
+	remote  net.Addr
+}
+
+func NewTcpServer(conf *Conf) *TcpServer {
+	return &TcpServer{
+		conf:     conf,
+		sender:   make(chan *Msg),
+		shutdown: make(chan struct{}),
+	}
+}
+
+func (server *TcpServer) Init() error {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", server.conf.Addr+server.conf.Port)
 	if err != nil {
-		fmt.Println("Resolve tcp addr error:", err)
-		panic(err)
+		return err
 	}
 
 	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		fmt.Println("Listen error:", err)
-		panic(err)
+		return err
 	}
-	defer tcpListener.Close()
 
-	for {
-		tcpConn, err := tcpListener.AcceptTCP()
-		if err != nil {
-			fmt.Println("Accept tcp error:", err)
-			continue
-		}
+	server.listener = tcpListener
 
-		fmt.Println("A client connected:" + tcpConn.RemoteAddr().String())
-		go tcpReadPipe(tcpConn)
-	}
+	return nil
 }
 
-func tcpReadPipe(conn *net.TCPConn) {
-	ipStr := conn.RemoteAddr().String()
+func (server *TcpServer) Start() {
 	defer func() {
-		fmt.Println("disconnected:" + ipStr)
-		conn.Close()
+		server.listener.Close()
 	}()
 
-	reader := bufio.NewReader(conn)
 	for {
-		msg, err := reader.ReadString('\n')
-		if err != nil && err != io.EOF {
-			fmt.Println("[ERROR]:", err)
-			continue
-		}
+		select {
+		case <-server.shutdown:
+			return
+		default:
+			conn, err := server.listener.AcceptTCP()
+			if err != nil {
+				continue
+			}
 
-		if msg != "" {
-			fmt.Println("remoteAddr:", conn.RemoteAddr(), "msg:", msg)
+			go NewClient(conn, server).Start()
+			fmt.Println("connection:", )
+
+			server.connCount++
+			go server.stopAcceptConn()
 		}
-		tcpWritePipe(conn)
 	}
 }
 
-func tcpWritePipe(conn *net.TCPConn) {
-	msg := time.Now().String() + "\n"
-	b := []byte(msg)
-	conn.Write(b)
+func (server *TcpServer) Shutdown() {
+	server.shutdown <- struct{}{}
+}
+
+func (server *TcpServer) stopAcceptConn() {
+	if server.connCount == server.conf.ConnLimit {
+		server.listener.SetDeadline(time.Now())
+		close(server.shutdown)
+	}
+}
+
+func (server *TcpServer) Send(msg *Msg) {
+	server.sender <- msg
 }

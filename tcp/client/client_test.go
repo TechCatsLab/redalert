@@ -29,45 +29,48 @@
 
 package client
 
-import (
-	"sync"
-	"testing"
-)
 
-var (
-	Connection []*TcpClient
-	remoteAddr = "127.0.0.1:9999"
-	writeMsg   = "you are the pretty sunshine of my eye\n"
-)
 
-func BenchmarkTcpClient(b *testing.B) {
-	group := &sync.WaitGroup{}
-	for i := 0; i < 50; i++ {
-		cli, err := NewTcpClient(remoteAddr)
-		if err != nil {
-			b.Error("create client error:", err)
-		}
 
-		err = cli.DialTcp()
-		if err == nil {
-			Connection = append(Connection, cli)
-		} else {
-			b.Error("dial tcp error:", err)
-		}
-	}
-
-	group.Add(50)
-	b.ResetTimer()
-	for j := 0; j < 50; j++ {
-		temp := j
-		go func() {
-			for i := 0; i < b.N; i++ {
-				Connection[temp].ReadMessage()
-				Connection[temp].WriteMessage(writeMsg)
-			}
-			group.Done()
-		}()
-	}
-
-	group.Wait()
-}
+//import (
+//	"sync"
+//	"testing"
+//)
+//
+//var (
+//	Connection []*TcpClient
+//	remoteAddr = "127.0.0.1:9999"
+//	writeMsg   = "you are the pretty sunshine of my eye\n"
+//)
+//
+//func BenchmarkTcpClient(b *testing.B) {
+//	group := &sync.WaitGroup{}
+//	for i := 0; i < 50; i++ {
+//		cli, err := NewTcpClient(remoteAddr)
+//		if err != nil {
+//			b.Error("create client error:", err)
+//		}
+//
+//		err = cli.DialTcp()
+//		if err == nil {
+//			Connection = append(Connection, cli)
+//		} else {
+//			b.Error("dial tcp error:", err)
+//		}
+//	}
+//
+//	group.Add(50)
+//	b.ResetTimer()
+//	for j := 0; j < 50; j++ {
+//		temp := j
+//		go func() {
+//			for i := 0; i < b.N; i++ {
+//				Connection[temp].ReadMessage()
+//				Connection[temp].WriteMessage(writeMsg)
+//			}
+//			group.Done()
+//		}()
+//	}
+//
+//	group.Wait()
+//}
