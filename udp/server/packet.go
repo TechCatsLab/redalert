@@ -35,6 +35,7 @@ import (
 	"os"
 
 	"redalert/udp/protocal"
+	"redalert/udp/remote"
 )
 
 // Packet represent a UDP packet
@@ -129,8 +130,9 @@ func (p *Packet) Reset() {
 func (p *Packet) handleRequest(s *Service) (err error) {
 	headerSize := protocal.Int16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset])
 	filename := string(p.Body[protocal.FileNameOffset : headerSize-protocal.FixedHeaderSize])
+	count := protocal.Int32(p.Body[protocal.PackCountOffset:protocal.PackOrderOffset])
 
-	if rem, ok := s.remote[p.Remote]; ok {
+	if rem, ok := remote.Service.GetRemote(p.Remote); ok {
 		if filename != rem.FileName {
 			err = ErrDiffrentFile
 			return
@@ -145,16 +147,15 @@ func (p *Packet) handleRequest(s *Service) (err error) {
 		return
 	}
 
-	s.remote[p.Remote] = &Remote{
-		FileName: filename,
-		File:     file,
+	if ok := remote.Service.OnStartTransfor(filename, file, count, p.Remote); !ok {
+		return ErrDiffrentFile
 	}
 
 	return nil
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
-	rem, ok := checkpack(p.Remote, s)
+	rem, ok := checkpack(p.Remote)
 	if !ok {
 		return ErrInvalidFilePack
 	}
@@ -178,8 +179,8 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	return nil
 }
 
-func checkpack(addr *net.UDPAddr, s *Service) (*Remote, bool) {
-	remote, ok := s.remote[addr]
+func checkpack(addr *net.UDPAddr) (*remote.Remote, bool) {
+	rem, ok := remote.Service.GetRemote(addr)
 
-	return remote, ok
+	return rem, ok
 }

@@ -32,7 +32,6 @@ package server
 import (
 	"fmt"
 	"net"
-	"os"
 
 	"redalert/udp/protocal"
 )
@@ -57,15 +56,7 @@ type Service struct {
 	handler Handler
 	buffer  []*Packet
 	sender  chan *Packet
-	remote  map[*net.UDPAddr]*Remote
 	close   chan struct{}
-}
-
-// Remote -
-type Remote struct {
-	FileName  string
-	File      *os.File
-	PackCount int32
 }
 
 // NewServer start a new UDP service
@@ -96,7 +87,6 @@ func NewServer(conf *Conf, handler Handler) (*Service, error) {
 		handler: handler,
 		buffer:  make([]*Packet, conf.PacketSize),
 		sender:  make(chan *Packet),
-		remote:  make(map[*net.UDPAddr]*Remote),
 		close:   make(chan struct{}),
 	}
 	server.prepare()
