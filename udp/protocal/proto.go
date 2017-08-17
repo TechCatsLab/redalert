@@ -60,8 +60,9 @@ const (
 	DefaultUDPPort = "17120"
 
 	// HeaderRequestType - define HeaderType
-	HeaderRequestType = 0x10
-	HeaderFileType    = 0x20
+	HeaderRequestType    = 0x10
+	HeaderFileType       = 0x20
+	HeaderFileFinishType = 0x30
 
 	// ReplyOk - define ReplyType
 	ReplyOk = 10
@@ -71,11 +72,12 @@ const (
 	DefaultDir = "~/"
 )
 
+// Proto - 传输协议结构
 type Proto struct {
-	HeaderType int8  // 包类型 （1.商量协议类型 2.传文件类型）
-	HeaderSize int16 // 包头大小
-	FileSize   int64 // 要传输的文件大小
-	PackSize   int16 // 包的大小
-	PackCount  int32 // 总包量
-	PackOrder  int32 // 包序号
+	HeaderType uint8  // 包类型 （1.商量协议类型 2.传文件类型）
+	HeaderSize uint16 // 包头大小
+	FileSize   uint64 // 要传输的文件大小
+	PackSize   uint16 // 包的大小
+	PackCount  uint32 // 总包量
+	PackOrder  uint32 // 包序号
 }

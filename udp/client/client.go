@@ -30,6 +30,8 @@
 package client
 
 import (
+	"bytes"
+	"encoding/binary"
 	"io"
 	"log"
 	"net"
@@ -78,8 +80,9 @@ func NewClient(conf *Conf, handler Handler) (*Client, error) {
 	return &client, nil
 }
 
+// PrepareFile - 准备要发送的文件
 func (c *Client) PrepareFile(f string) error {
-	var packCount int32
+	var packCount uint32
 
 	file, err := os.Open(f)
 	if err != nil {
@@ -98,16 +101,16 @@ func (c *Client) PrepareFile(f string) error {
 	c.file = file
 	c.fileInfo = fileInfo
 
-	if fileInfo.Size()%int64(c.conf.PacketSize) != 0 {
-		packCount = int32(fileInfo.Size()/int64(c.conf.PacketSize)) + 1
+	if uint64(fileInfo.Size())%uint64(c.conf.PacketSize) != 0 {
+		packCount = uint32(fileInfo.Size()/int64(c.conf.PacketSize)) + 1
 	} else {
-		packCount = int32(fileInfo.Size() / int64(c.conf.PacketSize))
+		packCount = uint32(fileInfo.Size() / int64(c.conf.PacketSize))
 	}
 
 	c.proto = &protocal.Proto{
-		HeaderSize: int16(protocal.FixedHeaderSize + len(fileInfo.Name())),
-		FileSize:   fileInfo.Size(),
-		PackSize:   int16(c.conf.PacketSize),
+		HeaderSize: uint16(protocal.FixedHeaderSize + len(fileInfo.Name())),
+		FileSize:   uint64(fileInfo.Size()),
+		PackSize:   uint16(c.conf.PacketSize),
 		PackCount:  packCount,
 		PackOrder:  0,
 	}
@@ -115,8 +118,8 @@ func (c *Client) PrepareFile(f string) error {
 	return nil
 }
 
-// StartRun - Client start run
-func (c *Client) StartRun() (err error) {
+// Start - Client start run
+func (c *Client) Start() (err error) {
 	defer func() {
 		if err != nil {
 			log.Fatal("StartRun - error：", err)
@@ -130,9 +133,9 @@ func (c *Client) StartRun() (err error) {
 
 	c.convertHeadType()
 
-	_, err = c.conn.Read(c.replyByte)
+	num, err := c.conn.Read(c.replyByte)
 	if err != nil {
-		log.Fatal("StartRun - 文件传输错误：", err)
+		log.Fatal("StartRun - 读到", num, "个字符，", "文件传输错误：", err)
 	}
 
 	if c.replyByte[0] == protocal.ReplyOk {
@@ -142,11 +145,13 @@ func (c *Client) StartRun() (err error) {
 				return
 			}
 
-			_, err = c.conn.Read(c.replyByte)
+			num, err = c.conn.Read(c.replyByte)
 			if err != nil {
-				log.Fatal("StartRun - 文件传输错误：", err)
+				log.Fatal("StartRun - 读到", num, "个字符，", "文件传输错误：", err)
 				return
 			}
+
+			log.Println("StartRun - 读到", num, "个字符。")
 
 			if c.replyByte[0] == protocal.ReplyOk {
 				continue
@@ -164,14 +169,18 @@ func (c *Client) StartRun() (err error) {
 // WriteFirst - 第一次连接服务器，商量协议
 func (c *Client) writeFirst() error {
 	c.headBytes[0] = byte(protocal.HeaderRequestType)
-	protocal.PutInt16(c.headBytes[protocal.HeaderSizeOffset:], c.proto.HeaderSize)
-	protocal.PutInt64(c.headBytes[protocal.FileSizeOffset:], c.proto.FileSize)
-	protocal.PutInt16(c.headBytes[protocal.PackSizeOffset:], c.proto.PackSize)
-	protocal.PutInt32(c.headBytes[protocal.PackCountOffset:], c.proto.PackCount)
-	protocal.PutInt32(c.headBytes[protocal.PackOrderOffset:], c.proto.PackOrder)
-	protocal.PutString(c.headBytes[protocal.FixedHeaderSize:], c.fileInfo.Name())
+	binary.LittleEndian.PutUint16(c.headBytes[protocal.HeaderSizeOffset:], c.proto.HeaderSize)
+	binary.LittleEndian.PutUint64(c.headBytes[protocal.FileSizeOffset:], c.proto.FileSize)
+	binary.LittleEndian.PutUint16(c.headBytes[protocal.PackSizeOffset:], c.proto.PackSize)
+	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackCountOffset:], c.proto.PackCount)
+	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackOrderOffset:], c.proto.PackOrder)
 
-	_, err := c.conn.Write(c.headBytes)
+	buf := bytes.NewBuffer(c.headBytes[protocal.FixedHeaderSize:])
+	buf.WriteString(c.fileInfo.Name())
+
+	num, err := c.conn.Write(c.headBytes)
+
+	log.Println("writeFirst - 写了", num, "个字符。")
 
 	return err
 }
@@ -183,27 +192,33 @@ func (c *Client) convertHeadType() {
 // writeFile - 开始向服务器发送文件
 func (c *Client) writeFile(order int32) error {
 	protocal.PutInt32(c.headBytes[protocal.PackOrderOffset:], order)
-	_, err := c.file.Read(c.headBytes[protocal.FixedHeaderSize:])
+	num, err := c.file.Read(c.headBytes[protocal.FixedHeaderSize:])
 
 	if err != nil {
 		if err == io.EOF {
 			log.Println("WriteFile - 传送文件结束！")
+			c.headBytes[0] = protocal.HeaderFileFinishType
+			c.conn.Write(c.headBytes)
 			c.conn.Close()
 
 			return io.EOF
 		}
 
-		log.Fatal("WriteFile - 读取文件错误：", err)
+		log.Fatal("WriteFile - 读到", num, "个字符。", "读取文件错误：", err)
 
 		return err
 	}
 
-	_, err = c.conn.Write(c.headBytes)
+	log.Println("WriteFile - 读到", num, "个字符。")
+
+	num, err = c.conn.Write(c.headBytes)
 	if err != nil {
-		log.Fatal("WriteFile - 文件传输错误：", err)
+		log.Fatal("WriteFile - 写了", num, "个字符。", "文件传输错误：", err)
 
 		return err
 	}
+
+	log.Println("WriteFile - 写了", num, "个字符。")
 
 	return nil
 }
