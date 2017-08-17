@@ -30,6 +30,7 @@
 package server
 
 import (
+	"encoding/binary"
 	"errors"
 	"net"
 	"os"
@@ -40,6 +41,7 @@ import (
 
 // Packet represent a UDP packet
 type Packet struct {
+	proto  protocal.Proto
 	Body   []byte
 	Size   int
 	Remote *net.UDPAddr
@@ -86,7 +88,7 @@ func (p *Packet) Read(s *Service) error {
 		Size:   1,
 	}
 
-	headerType := int8(p.Body[0])
+	headerType := uint8(p.Body[0])
 	switch {
 	case headerType == protocal.HeaderRequestType:
 		err := p.handleRequest(s)
@@ -118,6 +120,11 @@ func (p *Packet) Read(s *Service) error {
 				return err
 			}
 		}
+	case headerType == protocal.HeaderFileFinishType:
+		err := p.handleFileFinishPacket(s)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -130,9 +137,8 @@ func (p *Packet) Reset() {
 }
 
 func (p *Packet) handleRequest(s *Service) (err error) {
-	headerSize := protocal.Int16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset])
-	filename := string(p.Body[protocal.FileNameOffset : headerSize-protocal.FixedHeaderSize])
-	count := protocal.Int32(p.Body[protocal.PackCountOffset:protocal.PackOrderOffset])
+	binary.LittleEndian.PutUint16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset], p.proto.HeaderSize)
+	filename := string(p.Body[protocal.FileNameOffset : p.proto.HeaderSize-protocal.FixedHeaderSize])
 
 	if rem, ok := remote.Service.GetRemote(p.Remote); ok {
 		if filename != rem.FileName {
@@ -149,7 +155,7 @@ func (p *Packet) handleRequest(s *Service) (err error) {
 		return
 	}
 
-	if ok := remote.Service.OnStartTransfor(filename, file, count, p.Remote); !ok {
+	if ok := remote.Service.OnStartTransfor(filename, file, p.Remote); !ok {
 		return ErrDiffrentFile
 	}
 
@@ -157,13 +163,13 @@ func (p *Packet) handleRequest(s *Service) (err error) {
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
-	rem, ok := checkpack(p.Remote)
+	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrInvalidFilePack
 	}
 
-	packOrder := protocal.Int32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
-	if packOrder-rem.PackCount > 1 {
+	binary.LittleEndian.PutUint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize], p.proto.PackOrder)
+	if p.proto.PackOrder-rem.PackCount > 1 {
 		return ErrInvalidOrder
 	}
 
@@ -181,8 +187,8 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	return nil
 }
 
-func checkpack(addr *net.UDPAddr) (*remote.Remote, bool) {
-	rem, ok := remote.Service.GetRemote(addr)
+func (p *Packet) handleFileFinishPacket(s *Service) error {
+	remote.Service.Close(p.Remote)
 
-	return rem, ok
+	return nil
 }

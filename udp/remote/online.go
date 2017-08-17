@@ -42,7 +42,7 @@ var Service *remoteAddrTable
 type Remote struct {
 	FileName  string
 	File      *os.File
-	PackCount int32
+	PackCount uint32
 	Timer     *time.Timer
 }
 
@@ -58,15 +58,14 @@ func init() {
 }
 
 // OnStartTransfor storage Remote for new client
-func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, count int32, remote *net.UDPAddr) bool {
+func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote *net.UDPAddr) bool {
 	_, ok := r.remote[remote]
 	if !ok {
 		rem := Remote{
-			FileName:  filename,
-			File:      file,
-			PackCount: count,
+			FileName: filename,
+			File:     file,
 			Timer: time.AfterFunc(3*time.Minute, func() {
-				r.Remove(remote)
+				r.Close(remote)
 			}),
 		}
 
@@ -85,7 +84,24 @@ func (r *remoteAddrTable) GetRemote(remote *net.UDPAddr) (*Remote, bool) {
 	return rem, ok
 }
 
-// Remove remove the disconnect client
-func (r *remoteAddrTable) Remove(remote *net.UDPAddr) {
+// Update update timer and count when receive success
+func (r *remoteAddrTable) Update(remote *net.UDPAddr) {
+	rem, _ := r.remote[remote]
+
+	rem.PackCount++
+	rem.Timer.Reset(3 * time.Minute)
+
+	r.remote[remote] = rem
+}
+
+// Close file and delete map
+func (r *remoteAddrTable) Close(remote *net.UDPAddr) {
+	rem, ok := r.remote[remote]
+	if !ok {
+		return
+	}
+
+	rem.File.Close()
+	rem.Timer.Stop()
 	delete(r.remote, remote)
 }
