@@ -31,7 +31,9 @@ package client
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
+	"hash"
 	"io"
 	"log"
 	"net"
@@ -44,16 +46,16 @@ import (
 type Client struct {
 	conf      *Conf
 	conn      *net.UDPConn
-	handler   Handler
 	replyByte []byte
 	headBytes []byte
+	hash      hash.Hash
 	file      *os.File
-	proto     *protocal.Proto
 	fileInfo  os.FileInfo
+	proto     *protocal.Proto
 }
 
 // NewClient 创建一个 UDP 客户端
-func NewClient(conf *Conf, handler Handler) (*Client, error) {
+func NewClient(conf *Conf) (*Client, error) {
 	addr, err := net.ResolveUDPAddr("udp", conf.RemoteAddress+":"+conf.RemotePort)
 	if err != nil {
 		log.Println("Can't resolve address: ", err)
@@ -72,7 +74,7 @@ func NewClient(conf *Conf, handler Handler) (*Client, error) {
 	client := Client{
 		conf:      conf,
 		conn:      conn,
-		handler:   handler,
+		hash:      md5.New(),
 		replyByte: make([]byte, protocal.ReplySize),
 		headBytes: make([]byte, conf.PacketSize),
 	}
@@ -139,7 +141,7 @@ func (c *Client) Start() (err error) {
 	}
 
 	if c.replyByte[0] == protocal.ReplyOk {
-		for i := int32(1); ; i++ {
+		for i := uint32(1); ; i++ {
 			err = c.writeFile(i)
 			if err != nil {
 				return
@@ -190,14 +192,18 @@ func (c *Client) convertHeadType() {
 }
 
 // writeFile - 开始向服务器发送文件
-func (c *Client) writeFile(order int32) error {
-	protocal.PutInt32(c.headBytes[protocal.PackOrderOffset:], order)
+func (c *Client) writeFile(order uint32) error {
+	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackOrderOffset:], order)
 	num, err := c.file.Read(c.headBytes[protocal.FixedHeaderSize:])
 
 	if err != nil {
 		if err == io.EOF {
 			log.Println("WriteFile - 传送文件结束！")
 			c.headBytes[0] = protocal.HeaderFileFinishType
+			buf := bytes.NewBuffer(c.headBytes[protocal.FixedHeaderSize:])
+			h := c.hash.Sum(nil)
+			log.Println("文件MD5值：", h)
+			buf.Write(h)
 			c.conn.Write(c.headBytes)
 			c.conn.Close()
 

@@ -44,7 +44,7 @@ var sendCmd = &cobra.Command{
 			PacketSize:    packSize,
 		}
 
-		cli, err := client.NewClient(conf, nil)
+		cli, err := client.NewClient(conf)
 		if err != nil {
 			fmt.Println("Remote server not receive:", err)
 			return
@@ -56,7 +56,7 @@ var sendCmd = &cobra.Command{
 			return
 		}
 
-		err = cli.StartRun()
+		err = cli.Start()
 		if err != nil {
 			fmt.Println("Client run error:", err)
 			return
