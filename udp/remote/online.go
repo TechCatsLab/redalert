@@ -30,6 +30,9 @@
 package remote
 
 import (
+	"crypto/md5"
+	"hash"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -44,6 +47,7 @@ type Remote struct {
 	File      *os.File
 	PackCount uint32
 	Timer     *time.Timer
+	Hash      hash.Hash
 }
 
 // RemoteAddrTable manege remote client address and it's transformation info
@@ -67,6 +71,7 @@ func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote
 			Timer: time.AfterFunc(3*time.Minute, func() {
 				r.Close(remote)
 			}),
+			Hash: md5.New(),
 		}
 
 		r.remote[remote] = &rem
@@ -85,11 +90,12 @@ func (r *remoteAddrTable) GetRemote(remote *net.UDPAddr) (*Remote, bool) {
 }
 
 // Update update timer and count when receive success
-func (r *remoteAddrTable) Update(remote *net.UDPAddr) {
+func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) {
 	rem, _ := r.remote[remote]
 
 	rem.PackCount++
 	rem.Timer.Reset(3 * time.Minute)
+	io.WriteString(rem.Hash, string(pack))
 
 	r.remote[remote] = rem
 }

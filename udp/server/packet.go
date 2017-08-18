@@ -30,10 +30,8 @@
 package server
 
 import (
-	"crypto/md5"
 	"encoding/binary"
 	"errors"
-	"io"
 	"net"
 	"os"
 
@@ -196,25 +194,11 @@ func (p *Packet) handleFileFinishPacket(s *Service, h string) error {
 		return ErrNotExists
 	}
 
-	hash, err := checkHash(rem.File)
-	if err != nil {
-		return err
-	}
+	hash := rem.Hash.Sum(nil)
 
-	if hash != h {
+	if string(hash) != h {
 		return ErrHashNotMatch
 	}
 
 	return nil
-}
-
-// todo: 考虑大文件哈希
-func checkHash(file *os.File) (string, error) {
-	md5h := md5.New()
-	_, err := io.Copy(md5h, file)
-	if err != nil {
-		return "", err
-	}
-
-	return string(md5h.Sum(nil)), nil
 }
