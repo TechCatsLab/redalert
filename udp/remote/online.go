@@ -90,12 +90,12 @@ func (r *remoteAddrTable) GetRemote(remote *net.UDPAddr) (*Remote, bool) {
 }
 
 // Update update timer and count when receive success
-func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) {
+func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack *[]byte) {
 	rem, _ := r.remote[remote]
 
 	rem.PackCount++
 	rem.Timer.Reset(3 * time.Minute)
-	io.WriteString(rem.Hash, string(pack))
+	io.WriteString(rem.Hash, string(*pack))
 
 	r.remote[remote] = rem
 }
@@ -108,6 +108,7 @@ func (r *remoteAddrTable) Close(remote *net.UDPAddr) {
 	}
 
 	rem.File.Close()
+	os.Remove(rem.FileName)
 	rem.Timer.Stop()
 	delete(r.remote, remote)
 }

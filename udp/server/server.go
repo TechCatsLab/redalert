@@ -149,10 +149,15 @@ func (c *Service) receive() {
 		packet.Reset()
 
 		err := packet.Read(c)
+		reply := make([]byte, 1)
 
 		if err != nil {
+			reply[0] = protocal.ReplyNo
+			c.Send(reply, packet.Remote)
 			c.handler.OnError(err, packet.Remote)
 		} else {
+			reply[0] = protocal.ReplyOk
+			c.Send(reply, packet.Remote)
 			c.handler.OnPacket(packet)
 		}
 

@@ -65,8 +65,8 @@ const (
 	HeaderFileFinishType = 0x30
 
 	// ReplyOk - define ReplyType
-	ReplyOk = 10
-	ReplyNo = 5
+	ReplyOk uint8 = 10
+	ReplyNo uint8 = 5
 
 	// DefaultDir is default dir for save file
 	DefaultDir = "~/"

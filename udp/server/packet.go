@@ -76,56 +76,24 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 
 func (p *Packet) Read(s *Service) error {
 	size, remote, err := s.conn.ReadFromUDP(p.Body)
-
 	if err != nil {
 		return err
 	}
 
-	p.Size = size
 	p.Remote = remote
-
-	pack := Packet{
-		Remote: p.Remote,
-		Size:   1,
-	}
+	p.Size = size
 
 	headerType := uint8(p.Body[0])
+
 	switch {
 	case headerType == protocal.HeaderRequestType:
-		err := p.handleRequest(s)
-		if err != nil {
-			pack.Body[0] = protocal.ReplyNo
-			err := pack.WriteToUDP(s.conn)
-			if err != nil {
-				return err
-			}
-		} else {
-			pack.Body[0] = protocal.ReplyOk
-			err := pack.WriteToUDP(s.conn)
-			if err != nil {
-				return err
-			}
-		}
+		return p.handleRequest(s)
+
 	case headerType == protocal.HeaderFileType:
-		err := p.handleFilePacket(s)
-		if err != nil {
-			pack.Body[0] = protocal.ReplyNo
-			err := pack.WriteToUDP(s.conn)
-			if err != nil {
-				return err
-			}
-		} else {
-			pack.Body[0] = protocal.ReplyOk
-			err := pack.WriteToUDP(s.conn)
-			if err != nil {
-				return err
-			}
-		}
+		return p.handleFilePacket(s)
+
 	case headerType == protocal.HeaderFileFinishType:
-		err := p.handleFileFinishPacket(s, "hash from client")
-		if err != nil {
-			return err
-		}
+		return p.handleFileFinishPacket(s, size)
 	}
 
 	return nil
@@ -137,23 +105,21 @@ func (p *Packet) Reset() {
 	p.Remote = nil
 }
 
-func (p *Packet) handleRequest(s *Service) (err error) {
+func (p *Packet) handleRequest(s *Service) error {
 	binary.LittleEndian.PutUint16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset], p.proto.HeaderSize)
 	filename := string(p.Body[protocal.FileNameOffset : p.proto.HeaderSize-protocal.FixedHeaderSize])
 
 	if rem, ok := remote.Service.GetRemote(p.Remote); ok {
 		if filename != rem.FileName {
-			err = ErrDiffrentFile
-			return
+			return ErrDiffrentFile
 		}
 
-		err = ErrDuplicated
-		return
+		return ErrDuplicated
 	}
 
 	file, err := os.OpenFile(protocal.DefaultDir+filename, 0, 0666)
 	if err != nil {
-		return
+		return err
 	}
 
 	if ok := remote.Service.OnStartTransfor(filename, file, p.Remote); !ok {
@@ -188,12 +154,13 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	return nil
 }
 
-func (p *Packet) handleFileFinishPacket(s *Service, h string) error {
+func (p *Packet) handleFileFinishPacket(s *Service, n int) error {
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrNotExists
 	}
 
+	h := string(p.Body[1:n])
 	hash := rem.Hash.Sum(nil)
 
 	if string(hash) != h {

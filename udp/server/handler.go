@@ -58,7 +58,7 @@ func (s *Provider) OnPacket(pack *Packet) error {
 		return ErrNotExists
 	}
 
-	remote.Service.Update(pack.Remote)
+	remote.Service.Update(pack.Remote, &pack.Body)
 
 	return nil
 }
