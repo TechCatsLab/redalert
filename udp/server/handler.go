@@ -37,28 +37,35 @@ import (
 
 // Handler represent operations by UDP service
 type Handler interface {
-	OnPacket(*Packet) error
 	OnError(error, *net.UDPAddr)
-	OnClose() error
+	OnPacket(*Packet) error
+	OnClose(*Service) error
 }
 
 // Provider provide service
 type Provider struct{}
 
 // OnError handle when encounters error
-func (s *Provider) OnError(err error, addr *net.UDPAddr) {
+func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 	log.Fatalf("crash with error %v", err)
 	remote.Service.Close(addr)
 }
 
 // OnPacket reset timer if receive packet success
-func (s *Provider) OnPacket(pack *Packet) error {
+func (sp *Provider) OnPacket(pack *Packet) error {
 	_, ok := remote.Service.GetRemote(pack.Remote)
 	if !ok {
 		return ErrNotExists
 	}
 
 	remote.Service.Update(pack.Remote, &pack.Body)
+
+	return nil
+}
+
+// OnClose close server
+func (sp *Provider) OnClose(s *Service) error {
+	s.Close()
 
 	return nil
 }
