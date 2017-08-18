@@ -30,8 +30,10 @@
 package server
 
 import (
+	"crypto/md5"
 	"encoding/binary"
 	"errors"
+	"io"
 	"net"
 	"os"
 
@@ -55,6 +57,7 @@ var (
 	ErrWrite           = errors.New("write file fail")
 	ErrReset           = errors.New("failed with reset timer")
 	ErrNotExists       = errors.New("Remote Address not exists")
+	ErrHashNotMatch    = errors.New("hash value not match")
 )
 
 // NewPacket generates a Packet with a len([]byte) == cap.
@@ -121,7 +124,7 @@ func (p *Packet) Read(s *Service) error {
 			}
 		}
 	case headerType == protocal.HeaderFileFinishType:
-		err := p.handleFileFinishPacket(s)
+		err := p.handleFileFinishPacket(s, "hash from client")
 		if err != nil {
 			return err
 		}
@@ -187,8 +190,31 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	return nil
 }
 
-func (p *Packet) handleFileFinishPacket(s *Service) error {
-	remote.Service.Close(p.Remote)
+func (p *Packet) handleFileFinishPacket(s *Service, h string) error {
+	rem, ok := remote.Service.GetRemote(p.Remote)
+	if !ok {
+		return ErrNotExists
+	}
+
+	hash, err := checkHash(rem.File)
+	if err != nil {
+		return err
+	}
+
+	if hash != h {
+		return ErrHashNotMatch
+	}
 
 	return nil
+}
+
+// todo: 考虑大文件哈希
+func checkHash(file *os.File) (string, error) {
+	md5h := md5.New()
+	_, err := io.Copy(md5h, file)
+	if err != nil {
+		return "", err
+	}
+
+	return string(md5h.Sum(nil)), nil
 }
