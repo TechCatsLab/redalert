@@ -15,9 +15,17 @@
 package cmd
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
+
+	"redalert/udp/server"
+)
+
+var (
+	serverPort      string
+	serverPackSize  int
+	serverCacheSize int
 )
 
 // serverCmd represents the server command
@@ -31,7 +39,21 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("server called")
+		conf := server.Conf{
+			Address:    "127.0.0.1",
+			Port:       serverPort,
+			PacketSize: serverPackSize,
+			CacheCount: serverCacheSize,
+		}
+
+		h := server.Provider{}
+
+		_, err := server.NewServer(&conf, &h)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		select {}
 	},
 }
 
@@ -44,6 +66,9 @@ func init() {
 	// and all subcommands, e.g.:
 	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
 
+	serverCmd.Flags().StringVarP(&serverPort, "port", "p", "17120", "port of server.")
+	serverCmd.Flags().IntVarP(&serverPackSize, "pack", "P", 1024, "size of pack.")
+	serverCmd.Flags().IntVarP(&serverCacheSize, "cache", "c", 1024, "size of cache.")
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
