@@ -70,7 +70,10 @@ func (sp *Provider) OnPacket(pack *Packet) error {
 		return nil
 	}
 
-	remote.Service.Update(pack.Remote, &pack.Body)
+	err := remote.Service.Update(pack.Remote, &pack.Body)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

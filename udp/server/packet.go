@@ -77,8 +77,7 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 
 func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	// size, remote, err := s.conn.ReadFromUDP(p.Body)
-	fmt.Printf("receive %d bytes from %v \n", size, *remote)
-	fmt.Printf("read bytes %v \n", p.Body)
+	fmt.Printf("[Read] read bytes from %v \n", p.Remote)
 	// if err != nil {
 	// return err
 	// }
@@ -156,8 +155,6 @@ func (p *Packet) handleFilePacket(s *Service) error {
 		return err
 	}
 
-	fmt.Printf("write %s into file \n", string(realBody))
-
 	if n < len(realBody) {
 		return ErrWrite
 	}
@@ -177,6 +174,8 @@ func (p *Packet) handleFileFinishPacket(s *Service, n int) error {
 
 	h := string(p.Body[1:n])
 	hash := rem.Hash.Sum(nil)
+
+	fmt.Printf("jsharkc hash is %v and my hash is %v \n", p.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+32], hash)
 
 	if string(hash) != h {
 		return ErrHashNotMatch

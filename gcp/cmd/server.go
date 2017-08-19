@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	serverAddress   string
 	serverPort      string
 	serverPackSize  int
 	serverCacheSize int
@@ -40,7 +41,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		conf := server.Conf{
-			Address:    "127.0.0.1",
+			Address:    serverAddress,
 			Port:       serverPort,
 			PacketSize: serverPackSize,
 			CacheCount: serverCacheSize,
@@ -66,6 +67,7 @@ func init() {
 	// and all subcommands, e.g.:
 	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
 
+	serverCmd.Flags().StringVarP(&serverAddress, "addr", "a", "127.0.0.1", "addr of server.")
 	serverCmd.Flags().StringVarP(&serverPort, "port", "p", "17120", "port of server.")
 	serverCmd.Flags().IntVarP(&serverPackSize, "pack", "P", 1024, "size of pack.")
 	serverCmd.Flags().IntVarP(&serverCacheSize, "cache", "c", 1024, "size of cache.")

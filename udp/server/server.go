@@ -81,6 +81,8 @@ func NewServer(conf *Conf, handler Handler) (*Service, error) {
 		return nil, err
 	}
 
+	fmt.Printf("[server] start at %v \n", conn.LocalAddr())
+
 	server := &Service{
 		conf:    conf,
 		conn:    conn,
@@ -106,6 +108,7 @@ func (c *Service) handlerClient() {
 
 		case pack := <-c.sender:
 			err := pack.WriteToUDP(c.conn)
+			fmt.Printf("[Send] send a packet to %v \n", pack.Remote)
 
 			if err != nil {
 				c.handler.OnError(err, nil)
@@ -143,12 +146,13 @@ func (c *Service) receive() {
 	// index := 0
 	// cap := c.conf.CacheCount
 
+	p := NewPacket(1024)
 	for {
 		// Pick a packet and reset it for receiving.
 		// packet := c.buffer[index]
 		// packet.Reset()
-		p := NewPacket(1024)
 		size, remote, err := c.conn.ReadFromUDP(p.Body)
+		fmt.Printf("[receive] size %d \n ", size)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
