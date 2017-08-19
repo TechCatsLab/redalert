@@ -88,7 +88,7 @@ func NewServer(conf *Conf, handler Handler) (*Service, error) {
 		conn:    conn,
 		handler: handler,
 		buffer:  make([]*Packet, conf.PacketSize),
-		sender:  make(chan *Packet),
+		sender:  make(chan *Packet, 256),
 		close:   make(chan struct{}),
 	}
 	server.prepare()
@@ -121,9 +121,9 @@ func (c *Service) prepare() {
 	c.conn.SetReadBuffer(defaultReadBuffer)
 	c.conn.SetWriteBuffer(defaultWriteBuffer)
 
-	for i := 0; i < c.conf.CacheCount; i++ {
-		c.buffer[i] = NewPacket(c.conf.PacketSize)
-	}
+	// for i := 0; i < c.conf.CacheCount; i++ {
+	// c.buffer[i] = NewPacket(c.conf.PacketSize)
+	// }
 }
 
 // Close close current service
@@ -147,6 +147,8 @@ func (c *Service) receive() {
 	// cap := c.conf.CacheCount
 
 	p := NewPacket(1024)
+	reply := make([]byte, 1)
+
 	for {
 		// Pick a packet and reset it for receiving.
 		// packet := c.buffer[index]
@@ -157,16 +159,17 @@ func (c *Service) receive() {
 			c.handler.OnError(err, remote)
 		}
 		err = p.Read(c, size, remote)
-		reply := make([]byte, 1)
+
+		if err == nil {
+			reply[0] = protocal.ReplyOk
+			c.Send(reply, p.Remote)
+			err = c.handler.OnPacket(p)
+		}
 
 		if err != nil {
 			reply[0] = protocal.ReplyNo
 			c.Send(reply, p.Remote)
 			c.handler.OnError(err, p.Remote)
-		} else {
-			reply[0] = protocal.ReplyOk
-			c.Send(reply, p.Remote)
-			c.handler.OnPacket(p)
 		}
 
 		// index = (index + 1) % cap

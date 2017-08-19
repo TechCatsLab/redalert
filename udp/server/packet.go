@@ -135,7 +135,7 @@ func (p *Packet) handleRequest(s *Service) error {
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
-	fmt.Printf("[handleFilePacket] receive pack %v \n", p.Body)
+	fmt.Printf("[handleFilePacket] receive pack file from %v \n", p.Remote)
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrInvalidFilePack

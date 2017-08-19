@@ -57,11 +57,6 @@ func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 
 // OnPacket reset timer if receive packet success
 func (sp *Provider) OnPacket(pack *Packet) error {
-	_, ok := remote.Service.GetRemote(pack.Remote)
-	if !ok {
-		return ErrNotExists
-	}
-
 	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
 
 	if pack.proto.HeaderType == protocal.HeaderRequestType || pack.proto.HeaderType == protocal.HeaderFileFinishType {

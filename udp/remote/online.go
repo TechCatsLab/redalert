@@ -99,8 +99,6 @@ func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack *[]byte) error {
 	fmt.Printf("[Update] map \n")
 	rem, _ := r.remote[key]
 
-	fmt.Printf("rem is %v \n", rem)
-
 	rem.PackCount++
 	rem.Timer.Reset(3 * time.Minute)
 	_, err := rem.Hash.Write(*pack)
