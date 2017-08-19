@@ -69,7 +69,7 @@ const (
 	ReplyNo uint8 = 5
 
 	// DefaultDir is default dir for save file
-	DefaultDir = "~/"
+	DefaultDir = ""
 )
 
 // Proto - 传输协议结构

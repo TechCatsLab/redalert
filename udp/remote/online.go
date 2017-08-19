@@ -31,6 +31,7 @@ package remote
 
 import (
 	"crypto/md5"
+	"fmt"
 	"hash"
 	"io"
 	"net"
@@ -76,6 +77,7 @@ func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote
 
 		r.remote[remote] = &rem
 
+		fmt.Printf("[OnStartTransfor] create a table %v \n", *remote)
 		return true
 	}
 
@@ -83,25 +85,41 @@ func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote
 }
 
 // GetRemote return *Remote and true if exists
-func (r *remoteAddrTable) GetRemote(remote *net.UDPAddr) (*Remote, bool) {
-	rem, ok := r.remote[remote]
+func (r *remoteAddrTable) GetRemote(rmt *net.UDPAddr) (*Remote, bool) {
+	fmt.Printf("[GetRemote] quering %v \n", rmt)
+	rem, ok := r.remote[rmt]
+	fmt.Printf("get %v \n", rem)
+	for k, v := range r.remote {
+		if rmt == k {
+			fmt.Printf("true \n")
+		} else {
 
+			fmt.Printf("ip address is %v and contant is %v \n", k, v)
+		}
+	}
 	return rem, ok
 }
 
 // Update update timer and count when receive success
 func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack *[]byte) {
+	fmt.Printf("[Update] map \n")
 	rem, _ := r.remote[remote]
+
+	fmt.Printf("rem is %v \n", rem)
 
 	rem.PackCount++
 	rem.Timer.Reset(3 * time.Minute)
 	io.WriteString(rem.Hash, string(*pack))
 
-	r.remote[remote] = rem
+	rr, _ := r.remote[remote]
+	fmt.Printf("now count is %d \n", rr.PackCount)
+
+	// r.remote[remote] = rem
 }
 
 // Close file and delete map
 func (r *remoteAddrTable) Close(remote *net.UDPAddr) {
+	fmt.Printf("[Close] remote %v \n", remote)
 	rem, ok := r.remote[remote]
 	if !ok {
 		return
@@ -111,4 +129,11 @@ func (r *remoteAddrTable) Close(remote *net.UDPAddr) {
 	os.Remove(rem.FileName)
 	rem.Timer.Stop()
 	delete(r.remote, remote)
+}
+
+func (r *remoteAddrTable) ResetTimer(addr *net.UDPAddr) {
+	fmt.Printf("[ResetTimer] Executing reset timer func \n")
+	rem, _ := r.remote[addr]
+
+	rem.Timer.Reset(3 * time.Minute)
 }

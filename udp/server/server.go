@@ -140,27 +140,31 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 }
 
 func (c *Service) receive() {
-	index := 0
-	cap := c.conf.CacheCount
+	// index := 0
+	// cap := c.conf.CacheCount
 
 	for {
 		// Pick a packet and reset it for receiving.
-		packet := c.buffer[index]
-		packet.Reset()
-
-		err := packet.Read(c)
+		// packet := c.buffer[index]
+		// packet.Reset()
+		p := NewPacket(1024)
+		size, remote, err := c.conn.ReadFromUDP(p.Body)
+		if err != nil {
+			c.handler.OnError(err, remote)
+		}
+		err = p.Read(c, size, remote)
 		reply := make([]byte, 1)
 
 		if err != nil {
 			reply[0] = protocal.ReplyNo
-			c.Send(reply, packet.Remote)
-			c.handler.OnError(err, packet.Remote)
+			c.Send(reply, p.Remote)
+			c.handler.OnError(err, p.Remote)
 		} else {
 			reply[0] = protocal.ReplyOk
-			c.Send(reply, packet.Remote)
-			c.handler.OnPacket(packet)
+			c.Send(reply, p.Remote)
+			c.handler.OnPacket(p)
 		}
 
-		index = (index + 1) % cap
+		// index = (index + 1) % cap
 	}
 }

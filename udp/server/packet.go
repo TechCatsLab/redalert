@@ -32,6 +32,7 @@ package server
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 
@@ -70,15 +71,17 @@ func NewPacket(cap int) *Packet {
 // WriteToUDP write packet to UDP
 func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 	_, err := conn.WriteToUDP(p.Body[:p.Size], p.Remote)
-
+	fmt.Printf("[WriteToUDP] send %v to %v \n", p.Body, *p.Remote)
 	return err
 }
 
-func (p *Packet) Read(s *Service) error {
-	size, remote, err := s.conn.ReadFromUDP(p.Body)
-	if err != nil {
-		return err
-	}
+func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
+	// size, remote, err := s.conn.ReadFromUDP(p.Body)
+	fmt.Printf("receive %d bytes from %v \n", size, *remote)
+	fmt.Printf("read bytes %v \n", p.Body)
+	// if err != nil {
+	// return err
+	// }
 
 	p.Remote = remote
 	p.Size = size
@@ -106,9 +109,10 @@ func (p *Packet) Reset() {
 }
 
 func (p *Packet) handleRequest(s *Service) error {
-	binary.LittleEndian.PutUint16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset], p.proto.HeaderSize)
-	filename := string(p.Body[protocal.FileNameOffset : p.proto.HeaderSize-protocal.FixedHeaderSize])
-
+	headerSize := binary.LittleEndian.Uint16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset])
+	fmt.Printf("[handleRequest] header size is %d \n", headerSize)
+	filename := string(p.Body[protocal.FileNameOffset:headerSize])
+	fmt.Printf("file name is %s \n", filename)
 	if rem, ok := remote.Service.GetRemote(p.Remote); ok {
 		if filename != rem.FileName {
 			return ErrDiffrentFile
@@ -117,7 +121,7 @@ func (p *Packet) handleRequest(s *Service) error {
 		return ErrDuplicated
 	}
 
-	file, err := os.OpenFile(protocal.DefaultDir+filename, 0, 0666)
+	file, err := os.Create(protocal.DefaultDir + filename)
 	if err != nil {
 		return err
 	}
@@ -126,17 +130,22 @@ func (p *Packet) handleRequest(s *Service) error {
 		return ErrDiffrentFile
 	}
 
+	p.proto.HeaderType = uint8(p.Body[0])
+
 	return nil
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
+	fmt.Printf("[handleFilePacket] receive pack %v \n", p.Body)
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrInvalidFilePack
 	}
 
-	binary.LittleEndian.PutUint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize], p.proto.PackOrder)
-	if p.proto.PackOrder-rem.PackCount > 1 {
+	p.proto.HeaderType = uint8(p.Body[0])
+
+	order := binary.LittleEndian.Uint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
+	if order-rem.PackCount > 1 {
 		return ErrInvalidOrder
 	}
 
@@ -147,6 +156,8 @@ func (p *Packet) handleFilePacket(s *Service) error {
 		return err
 	}
 
+	fmt.Printf("write %s into file \n", string(realBody))
+
 	if n < len(realBody) {
 		return ErrWrite
 	}
@@ -155,10 +166,14 @@ func (p *Packet) handleFilePacket(s *Service) error {
 }
 
 func (p *Packet) handleFileFinishPacket(s *Service, n int) error {
+	fmt.Printf("[handleFileFinishPacket] client %v finish sending \n", p.Remote)
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
+		fmt.Printf("query from map-> file name is %v \n", rem)
 		return ErrNotExists
 	}
+
+	p.proto.HeaderType = uint8(p.Body[0])
 
 	h := string(p.Body[1:n])
 	hash := rem.Hash.Sum(nil)

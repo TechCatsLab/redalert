@@ -30,9 +30,12 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"redalert/udp/protocal"
 	"redalert/udp/remote"
+	"time"
 )
 
 // Handler represent operations by UDP service
@@ -48,6 +51,7 @@ type Provider struct{}
 // OnError handle when encounters error
 func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 	log.Fatalf("crash with error %v", err)
+	time.Sleep(1 * time.Second)
 	remote.Service.Close(addr)
 }
 
@@ -56,6 +60,14 @@ func (sp *Provider) OnPacket(pack *Packet) error {
 	_, ok := remote.Service.GetRemote(pack.Remote)
 	if !ok {
 		return ErrNotExists
+	}
+
+	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
+
+	if pack.proto.HeaderType == protocal.HeaderRequestType || pack.proto.HeaderType == protocal.HeaderFileFinishType {
+		remote.Service.ResetTimer(pack.Remote)
+
+		return nil
 	}
 
 	remote.Service.Update(pack.Remote, &pack.Body)
