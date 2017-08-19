@@ -38,6 +38,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	"redalert/udp/protocal"
 )
@@ -124,7 +125,7 @@ func (c *Client) PrepareFile(f string) error {
 func (c *Client) Start() (err error) {
 	defer func() {
 		if err != nil {
-			log.Fatal("StartRun - error：", err)
+			log.Fatal("Start - error：", err)
 		}
 	}()
 
@@ -137,23 +138,26 @@ func (c *Client) Start() (err error) {
 
 	num, err := c.conn.Read(c.replyByte)
 	if err != nil {
-		log.Fatal("StartRun - 读到", num, "个字符，", "文件传输错误：", err)
+		log.Fatal("Start - 读到", num, "个字符，", "文件传输错误：", err)
 	}
 
 	if c.replyByte[0] == protocal.ReplyOk {
 		for i := uint32(1); ; i++ {
 			err = c.writeFile(i)
 			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
 				return
 			}
 
 			num, err = c.conn.Read(c.replyByte)
 			if err != nil {
-				log.Fatal("StartRun - 读到", num, "个字符，", "文件传输错误：", err)
+				log.Fatal("Start - 读到", num, "个字符，", "文件传输错误：", err)
 				return
 			}
 
-			log.Println("StartRun - 读到", num, "个字符。")
+			log.Println("Start - 读到", num, "个字符。")
 
 			if c.replyByte[0] == protocal.ReplyOk {
 				continue
@@ -177,10 +181,17 @@ func (c *Client) writeFirst() error {
 	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackCountOffset:], c.proto.PackCount)
 	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackOrderOffset:], c.proto.PackOrder)
 
-	buf := bytes.NewBuffer(c.headBytes[protocal.FixedHeaderSize:])
-	buf.WriteString(c.fileInfo.Name())
+	nameReader := strings.NewReader(c.fileInfo.Name())
+	log.Println(c.fileInfo.Name())
+	nameReader.Read(c.headBytes[protocal.FixedHeaderSize:])
+
+	log.Println("writeFirst - headBytes:", c.headBytes[:c.proto.HeaderSize])
 
 	num, err := c.conn.Write(c.headBytes)
+
+	if err != nil {
+		log.Fatal("writeFirst err:", err)
+	}
 
 	log.Println("writeFirst - 写了", num, "个字符。")
 
