@@ -52,20 +52,24 @@ type Provider struct{}
 func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 	log.Fatalf("crash with error %v", err)
 	time.Sleep(1 * time.Second)
-	remote.Service.Close(addr)
+	remote.Service.Close(addr, err)
 }
 
 // OnPacket reset timer if receive packet success
 func (sp *Provider) OnPacket(pack *Packet) error {
 	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
 
-	if pack.proto.HeaderType == protocal.HeaderRequestType || pack.proto.HeaderType == protocal.HeaderFileFinishType {
+	if pack.proto.HeaderType == protocal.HeaderRequestType {
 		remote.Service.ResetTimer(pack.Remote)
 
 		return nil
 	}
 
-	err := remote.Service.Update(pack.Remote, &pack.Body)
+	if pack.proto.HeaderType == protocal.HeaderFileFinishType {
+		return nil
+	}
+
+	err := remote.Service.Update(pack.Remote, pack.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+pack.proto.PackSize])
 	if err != nil {
 		return err
 	}
@@ -75,6 +79,7 @@ func (sp *Provider) OnPacket(pack *Packet) error {
 
 // OnClose close server
 func (sp *Provider) OnClose(s *Service) error {
+	time.Sleep(1 * time.Second)
 	s.Close()
 
 	return nil

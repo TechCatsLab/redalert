@@ -71,7 +71,9 @@ func NewPacket(cap int) *Packet {
 // WriteToUDP write packet to UDP
 func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 	_, err := conn.WriteToUDP(p.Body[:p.Size], p.Remote)
+
 	fmt.Printf("[WriteToUDP] send %v to %v \n", p.Body, *p.Remote)
+
 	return err
 }
 
@@ -95,7 +97,7 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 		return p.handleFilePacket(s)
 
 	case headerType == protocal.HeaderFileFinishType:
-		return p.handleFileFinishPacket(s, size)
+		return p.handleFileFinishPacket(s)
 	}
 
 	return nil
@@ -109,9 +111,11 @@ func (p *Packet) Reset() {
 
 func (p *Packet) handleRequest(s *Service) error {
 	headerSize := binary.LittleEndian.Uint16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset])
-	fmt.Printf("[handleRequest] header size is %d \n", headerSize)
 	filename := string(p.Body[protocal.FileNameOffset:headerSize])
+
+	fmt.Printf("[handleRequest] header size is %d \n", headerSize)
 	fmt.Printf("file name is %s \n", filename)
+
 	if rem, ok := remote.Service.GetRemote(p.Remote); ok {
 		if filename != rem.FileName {
 			return ErrDiffrentFile
@@ -135,20 +139,23 @@ func (p *Packet) handleRequest(s *Service) error {
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
+	order := binary.LittleEndian.Uint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
+	availableSize := binary.LittleEndian.Uint16(p.Body[protocal.PackSizeOffset:protocal.PackCountOffset])
+	fmt.Printf("[availableSize] is %d \n", availableSize)
+	realBody := p.Body[protocal.FixedHeaderSize : protocal.FixedHeaderSize+availableSize]
+
 	fmt.Printf("[handleFilePacket] receive pack file from %v \n", p.Remote)
+
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrInvalidFilePack
 	}
 
-	p.proto.HeaderType = uint8(p.Body[0])
+	fmt.Printf("[ORDER] is %d \n", order)
 
-	order := binary.LittleEndian.Uint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
 	if order-rem.PackCount > 1 {
 		return ErrInvalidOrder
 	}
-
-	realBody := p.Body[protocal.FixedHeaderSize:]
 
 	n, err := rem.File.Write(realBody)
 	if err != nil {
@@ -159,10 +166,13 @@ func (p *Packet) handleFilePacket(s *Service) error {
 		return ErrWrite
 	}
 
+	p.proto.HeaderType = uint8(p.Body[0])
+	p.proto.PackSize = availableSize
+
 	return nil
 }
 
-func (p *Packet) handleFileFinishPacket(s *Service, n int) error {
+func (p *Packet) handleFileFinishPacket(s *Service) error {
 	fmt.Printf("[handleFileFinishPacket] client %v finish sending \n", p.Remote)
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
@@ -170,16 +180,17 @@ func (p *Packet) handleFileFinishPacket(s *Service, n int) error {
 		return ErrNotExists
 	}
 
-	p.proto.HeaderType = uint8(p.Body[0])
-
-	h := string(p.Body[1:n])
 	hash := rem.Hash.Sum(nil)
 
-	fmt.Printf("jsharkc hash is %v and my hash is %v \n", p.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+32], hash)
+	fmt.Print("receive finish \n")
 
-	if string(hash) != h {
+	if string(p.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+16]) != string(hash) {
 		return ErrHashNotMatch
 	}
+
+	p.proto.HeaderType = uint8(p.Body[0])
+
+	remote.Service.Close(p.Remote, nil)
 
 	return nil
 }

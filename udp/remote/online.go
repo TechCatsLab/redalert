@@ -31,6 +31,7 @@ package remote
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"hash"
 	"net"
@@ -39,7 +40,10 @@ import (
 )
 
 // Service expose interface of RemoteAddrTable
-var Service *remoteAddrTable
+var (
+	Service    *remoteAddrTable
+	errTimeOut = errors.New("receive time out")
+)
 
 // Remote storage remote client info
 type Remote struct {
@@ -70,7 +74,7 @@ func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote
 			FileName: filename,
 			File:     file,
 			Timer: time.AfterFunc(3*time.Minute, func() {
-				r.Close(remote)
+				r.Close(remote, errTimeOut)
 			}),
 			Hash: md5.New(),
 		}
@@ -94,27 +98,27 @@ func (r *remoteAddrTable) GetRemote(rmt *net.UDPAddr) (*Remote, bool) {
 }
 
 // Update update timer and count when receive success
-func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack *[]byte) error {
+func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) error {
 	key := remote.IP.String() + ":" + string(remote.Port)
 	fmt.Printf("[Update] map \n")
 	rem, _ := r.remote[key]
 
 	rem.PackCount++
 	rem.Timer.Reset(3 * time.Minute)
-	_, err := rem.Hash.Write(*pack)
+	_, err := rem.Hash.Write(pack)
 	if err != nil {
 		return err
 	}
 
 	rr, _ := r.remote[key]
-	fmt.Printf("now count is %d \n", rr.PackCount)
+	fmt.Printf("[Update] now count is %d \n", rr.PackCount)
 
 	return nil
 	// r.remote[remote] = rem
 }
 
 // Close file and delete map
-func (r *remoteAddrTable) Close(remote *net.UDPAddr) {
+func (r *remoteAddrTable) Close(remote *net.UDPAddr, err error) {
 	key := remote.IP.String() + ":" + string(remote.Port)
 	fmt.Printf("[Close] remote %v \n", remote)
 	rem, ok := r.remote[key]
@@ -125,7 +129,9 @@ func (r *remoteAddrTable) Close(remote *net.UDPAddr) {
 	rem.File.Close()
 	os.Remove(rem.FileName)
 	rem.Timer.Stop()
-	delete(r.remote, key)
+	if err != nil {
+		delete(r.remote, key)
+	}
 }
 
 func (r *remoteAddrTable) ResetTimer(addr *net.UDPAddr) {

@@ -120,10 +120,6 @@ func (c *Service) handlerClient() {
 func (c *Service) prepare() {
 	c.conn.SetReadBuffer(defaultReadBuffer)
 	c.conn.SetWriteBuffer(defaultWriteBuffer)
-
-	// for i := 0; i < c.conf.CacheCount; i++ {
-	// c.buffer[i] = NewPacket(c.conf.PacketSize)
-	// }
 }
 
 // Close close current service
@@ -143,27 +139,24 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 }
 
 func (c *Service) receive() {
-	// index := 0
-	// cap := c.conf.CacheCount
-
 	p := NewPacket(1024)
 	reply := make([]byte, 1)
 
 	for {
-		// Pick a packet and reset it for receiving.
-		// packet := c.buffer[index]
-		// packet.Reset()
 		size, remote, err := c.conn.ReadFromUDP(p.Body)
-		fmt.Printf("[receive] size %d \n ", size)
+		fmt.Printf("[receive] size %d \n", size)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
 		err = p.Read(c, size, remote)
 
 		if err == nil {
-			reply[0] = protocal.ReplyOk
-			c.Send(reply, p.Remote)
 			err = c.handler.OnPacket(p)
+			reply[0] = protocal.ReplyOk
+			if err == nil && p.Body[0] != protocal.HeaderFileFinishType {
+				c.Send(reply, p.Remote)
+			}
+
 		}
 
 		if err != nil {
@@ -171,7 +164,5 @@ func (c *Service) receive() {
 			c.Send(reply, p.Remote)
 			c.handler.OnError(err, p.Remote)
 		}
-
-		// index = (index + 1) % cap
 	}
 }
