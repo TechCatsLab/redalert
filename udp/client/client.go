@@ -39,6 +39,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"redalert/udp/protocal"
 )
@@ -83,7 +84,7 @@ func NewClient(conf *Conf) (*Client, error) {
 	return &client, nil
 }
 
-// PrepareFile - 准备要发送的文件
+// PrepareFile - prepare file.
 func (c *Client) PrepareFile(f string) error {
 	var packCount uint32
 
@@ -129,6 +130,8 @@ func (c *Client) Start() (err error) {
 		}
 	}()
 
+	begin := time.Now()
+
 	err = c.writeFirst()
 	if err != nil {
 		return
@@ -138,7 +141,7 @@ func (c *Client) Start() (err error) {
 
 	num, err := c.conn.Read(c.replyByte)
 	if err != nil {
-		log.Fatal("Start - 读到", num, "个字符，", "文件传输错误：", err)
+		log.Fatal("Start - read", num, "word,", "send filw error：", err)
 	}
 
 	if c.replyByte[0] == protocal.ReplyOk {
@@ -147,6 +150,7 @@ func (c *Client) Start() (err error) {
 			if err != nil {
 				if err == io.EOF {
 					err = nil
+					log.Println("Time:", time.Now().Sub(begin))
 				}
 				return
 			}
@@ -211,10 +215,10 @@ func (c *Client) writeFile(order uint32) error {
 		if err == io.EOF {
 			log.Println("WriteFile - 传送文件结束！")
 			c.headBytes[0] = protocal.HeaderFileFinishType
-			buf := bytes.NewBuffer(c.headBytes[protocal.FixedHeaderSize:])
 			h := c.hash.Sum(nil)
+			md5Reader := bytes.NewReader(h)
 			log.Println("文件MD5值：", h)
-			buf.Write(h)
+			md5Reader.Read(c.headBytes[protocal.FixedHeaderSize:])
 			c.conn.Write(c.headBytes)
 			c.conn.Close()
 
@@ -226,7 +230,9 @@ func (c *Client) writeFile(order uint32) error {
 		return err
 	}
 
+	c.hash.Write(c.headBytes[protocal.FixedHeaderSize : protocal.FixedHeaderSize+num])
 	log.Println("WriteFile - 读到", num, "个字符。")
+	binary.LittleEndian.PutUint16(c.headBytes[protocal.PackSizeOffset:], uint16(num))
 
 	num, err = c.conn.Write(c.headBytes)
 	if err != nil {
