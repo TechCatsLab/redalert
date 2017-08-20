@@ -103,8 +103,11 @@ func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) error {
 	fmt.Printf("[Update] map \n")
 	rem, _ := r.remote[key]
 
-	rem.PackCount++
 	rem.Timer.Reset(3 * time.Minute)
+	if len(pack) == 0 {
+		return nil
+	}
+	rem.PackCount++
 	_, err := rem.Hash.Write(pack)
 	if err != nil {
 		return err
@@ -130,12 +133,4 @@ func (r *remoteAddrTable) Close(remote *net.UDPAddr, err error) {
 	if err != nil {
 		delete(r.remote, key)
 	}
-}
-
-func (r *remoteAddrTable) ResetTimer(addr *net.UDPAddr) {
-	key := addr.IP.String() + ":" + string(addr.Port)
-	fmt.Printf("[ResetTimer] Executing reset timer func \n")
-	rem, _ := r.remote[key]
-
-	rem.Timer.Reset(3 * time.Minute)
 }

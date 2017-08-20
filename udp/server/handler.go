@@ -48,6 +48,8 @@ type Handler interface {
 // Provider provide service
 type Provider struct{}
 
+var nilPack = make([]byte, 0)
+
 // OnError handle when encounters error
 func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 	log.Fatalf("crash with error %v", err)
@@ -60,7 +62,7 @@ func (sp *Provider) OnPacket(pack *Packet) error {
 	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
 
 	if pack.proto.HeaderType == protocal.HeaderRequestType {
-		remote.Service.ResetTimer(pack.Remote)
+		remote.Service.Update(pack.Remote, nilPack)
 
 		return nil
 	}
