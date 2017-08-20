@@ -110,11 +110,9 @@ func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) error {
 		return err
 	}
 
-	rr, _ := r.remote[key]
-	fmt.Printf("[Update] now count is %d \n", rr.PackCount)
+	fmt.Printf("[Update] now count is %d \n", rem.PackCount)
 
 	return nil
-	// r.remote[remote] = rem
 }
 
 // Close file and delete map

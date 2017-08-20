@@ -77,7 +77,10 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 	return err
 }
 
+// Read read packet and handle on the base of type
+// TODO: 考虑把从 UDP 中读取操作从 receive() 函数放回到 Read() 函数中
 func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
+	var err error
 	// size, remote, err := s.conn.ReadFromUDP(p.Body)
 	fmt.Printf("[Read] read bytes from %v \n", p.Remote)
 	// if err != nil {
@@ -91,14 +94,20 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 
 	switch {
 	case headerType == protocal.HeaderRequestType:
-		return p.handleRequest(s)
+		err = p.handleRequest(s)
 
 	case headerType == protocal.HeaderFileType:
-		return p.handleFilePacket(s)
+		err = p.handleFilePacket(s)
 
 	case headerType == protocal.HeaderFileFinishType:
-		return p.handleFileFinishPacket(s)
+		err = p.handleFileFinishPacket(s)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	p.proto.HeaderType = uint8(p.Body[0])
 
 	return nil
 }
@@ -133,15 +142,12 @@ func (p *Packet) handleRequest(s *Service) error {
 		return ErrDiffrentFile
 	}
 
-	p.proto.HeaderType = uint8(p.Body[0])
-
 	return nil
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
 	order := binary.LittleEndian.Uint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
 	availableSize := binary.LittleEndian.Uint16(p.Body[protocal.PackSizeOffset:protocal.PackCountOffset])
-	fmt.Printf("[availableSize] is %d \n", availableSize)
 	realBody := p.Body[protocal.FixedHeaderSize : protocal.FixedHeaderSize+availableSize]
 
 	fmt.Printf("[handleFilePacket] receive pack file from %v \n", p.Remote)
@@ -166,7 +172,6 @@ func (p *Packet) handleFilePacket(s *Service) error {
 		return ErrWrite
 	}
 
-	p.proto.HeaderType = uint8(p.Body[0])
 	p.proto.PackSize = availableSize
 
 	return nil
@@ -187,8 +192,6 @@ func (p *Packet) handleFileFinishPacket(s *Service) error {
 	if string(p.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+16]) != string(hash) {
 		return ErrHashNotMatch
 	}
-
-	p.proto.HeaderType = uint8(p.Body[0])
 
 	remote.Service.Close(p.Remote, nil)
 
