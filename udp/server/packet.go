@@ -159,6 +159,10 @@ func (p *Packet) handleFilePacket(s *Service) error {
 
 	fmt.Printf("[ORDER] is %d \n", order)
 
+	if order == rem.PackCount {
+		return nil
+	}
+
 	if order-rem.PackCount > 1 {
 		return ErrInvalidOrder
 	}
