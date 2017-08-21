@@ -68,8 +68,13 @@ const (
 	ReplyOk uint8 = 10
 	ReplyNo uint8 = 5
 
+	// ReplyFinish - define Reply finish
+	ReplyFinish = 1<<32 - 1
+
 	// DefaultDir is default dir for save file
 	DefaultDir = ""
+
+	FirstPacketSize = 1 << 10
 )
 
 // Proto - 传输协议结构
