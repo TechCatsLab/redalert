@@ -28,7 +28,7 @@
  *     Initial: 2017/08/10        Liu Jiachang
  */
 
-package protocal
+package protocol
 
 const (
 	// HeaderTypeSize - Header Size

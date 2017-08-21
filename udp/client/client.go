@@ -41,7 +41,7 @@ import (
 	"strings"
 	"time"
 
-	"redalert/udp/protocal"
+	"redalert/udp/protocol"
 )
 
 // Client - UDP Client
@@ -53,7 +53,7 @@ type Client struct {
 	hash      hash.Hash
 	file      *os.File
 	fileInfo  os.FileInfo
-	proto     *protocal.Proto
+	proto     *protocol.Proto
 }
 
 // NewClient 创建一个 UDP 客户端
@@ -77,7 +77,7 @@ func NewClient(conf *Conf) (*Client, error) {
 		conf:      conf,
 		conn:      conn,
 		hash:      md5.New(),
-		replyByte: make([]byte, protocal.ReplySize),
+		replyByte: make([]byte, protocol.ReplySize),
 		headBytes: make([]byte, conf.PacketSize),
 	}
 
@@ -111,8 +111,8 @@ func (c *Client) PrepareFile(f string) error {
 		packCount = uint32(fileInfo.Size() / int64(c.conf.PacketSize))
 	}
 
-	c.proto = &protocal.Proto{
-		HeaderSize: uint16(protocal.FixedHeaderSize + len(fileInfo.Name())),
+	c.proto = &protocol.Proto{
+		HeaderSize: uint16(protocol.FixedHeaderSize + len(fileInfo.Name())),
 		FileSize:   uint64(fileInfo.Size()),
 		PackSize:   uint16(c.conf.PacketSize),
 		PackCount:  packCount,
@@ -144,7 +144,7 @@ func (c *Client) Start() (err error) {
 		log.Fatal("Start - read", num, "word,", "send filw error：", err)
 	}
 
-	if c.replyByte[0] == protocal.ReplyOk {
+	if c.replyByte[0] == protocol.ReplyOk {
 		for i := uint32(1); ; i++ {
 			err = c.writeFile(i)
 			if err != nil {
@@ -163,7 +163,7 @@ func (c *Client) Start() (err error) {
 
 			log.Println("Start - 读到", num, "个字符。")
 
-			if c.replyByte[0] == protocal.ReplyOk {
+			if c.replyByte[0] == protocol.ReplyOk {
 				continue
 			}
 
@@ -178,16 +178,16 @@ func (c *Client) Start() (err error) {
 
 // WriteFirst - 第一次连接服务器，商量协议
 func (c *Client) writeFirst() error {
-	c.headBytes[0] = byte(protocal.HeaderRequestType)
-	binary.LittleEndian.PutUint16(c.headBytes[protocal.HeaderSizeOffset:], c.proto.HeaderSize)
-	binary.LittleEndian.PutUint64(c.headBytes[protocal.FileSizeOffset:], c.proto.FileSize)
-	binary.LittleEndian.PutUint16(c.headBytes[protocal.PackSizeOffset:], c.proto.PackSize)
-	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackCountOffset:], c.proto.PackCount)
-	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackOrderOffset:], c.proto.PackOrder)
+	c.headBytes[0] = byte(protocol.HeaderRequestType)
+	binary.LittleEndian.PutUint16(c.headBytes[protocol.HeaderSizeOffset:], c.proto.HeaderSize)
+	binary.LittleEndian.PutUint64(c.headBytes[protocol.FileSizeOffset:], c.proto.FileSize)
+	binary.LittleEndian.PutUint16(c.headBytes[protocol.PackSizeOffset:], c.proto.PackSize)
+	binary.LittleEndian.PutUint32(c.headBytes[protocol.PackCountOffset:], c.proto.PackCount)
+	binary.LittleEndian.PutUint32(c.headBytes[protocol.PackOrderOffset:], c.proto.PackOrder)
 
 	nameReader := strings.NewReader(c.fileInfo.Name())
 	log.Println(c.fileInfo.Name())
-	nameReader.Read(c.headBytes[protocal.FixedHeaderSize:])
+	nameReader.Read(c.headBytes[protocol.FixedHeaderSize:])
 
 	log.Println("writeFirst - headBytes:", c.headBytes[:c.proto.HeaderSize])
 
@@ -203,22 +203,22 @@ func (c *Client) writeFirst() error {
 }
 
 func (c *Client) convertHeadType() {
-	c.headBytes[0] = byte(protocal.HeaderFileType)
+	c.headBytes[0] = byte(protocol.HeaderFileType)
 }
 
 // writeFile - 开始向服务器发送文件
 func (c *Client) writeFile(order uint32) error {
-	binary.LittleEndian.PutUint32(c.headBytes[protocal.PackOrderOffset:], order)
-	num, err := c.file.Read(c.headBytes[protocal.FixedHeaderSize:])
+	binary.LittleEndian.PutUint32(c.headBytes[protocol.PackOrderOffset:], order)
+	num, err := c.file.Read(c.headBytes[protocol.FixedHeaderSize:])
 
 	if err != nil {
 		if err == io.EOF {
 			log.Println("WriteFile - 传送文件结束！")
-			c.headBytes[0] = protocal.HeaderFileFinishType
+			c.headBytes[0] = protocol.HeaderFileFinishType
 			h := c.hash.Sum(nil)
 			md5Reader := bytes.NewReader(h)
 			log.Println("文件MD5值：", h)
-			md5Reader.Read(c.headBytes[protocal.FixedHeaderSize:])
+			md5Reader.Read(c.headBytes[protocol.FixedHeaderSize:])
 			c.conn.Write(c.headBytes)
 			c.conn.Close()
 
@@ -230,9 +230,9 @@ func (c *Client) writeFile(order uint32) error {
 		return err
 	}
 
-	c.hash.Write(c.headBytes[protocal.FixedHeaderSize : protocal.FixedHeaderSize+num])
+	c.hash.Write(c.headBytes[protocol.FixedHeaderSize : protocol.FixedHeaderSize+num])
 	log.Println("WriteFile - 读到", num, "个字符。")
-	binary.LittleEndian.PutUint16(c.headBytes[protocal.PackSizeOffset:], uint16(num))
+	binary.LittleEndian.PutUint16(c.headBytes[protocol.PackSizeOffset:], uint16(num))
 
 	num, err = c.conn.Write(c.headBytes)
 	if err != nil {

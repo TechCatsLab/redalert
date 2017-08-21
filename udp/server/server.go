@@ -33,7 +33,7 @@ import (
 	"fmt"
 	"net"
 
-	"redalert/udp/protocal"
+	"redalert/udp/protocol"
 )
 
 const (
@@ -64,7 +64,7 @@ func NewServer(conf *Conf, handler Handler) (*Service, error) {
 	var udpPort string
 
 	if conf.Port == "" {
-		udpPort = ":" + protocal.DefaultUDPPort
+		udpPort = ":" + protocol.DefaultUDPPort
 	} else {
 		udpPort = conf.Address + ":" + conf.Port
 	}
@@ -152,15 +152,15 @@ func (c *Service) receive() {
 
 		if err == nil {
 			err = c.handler.OnPacket(p)
-			reply[0] = protocal.ReplyOk
-			if err == nil && p.Body[0] != protocal.HeaderFileFinishType {
+			reply[0] = protocol.ReplyOk
+			if err == nil && p.Body[0] != protocol.HeaderFileFinishType {
 				c.Send(reply, p.Remote)
 			}
 
 		}
 
 		if err != nil {
-			reply[0] = protocal.ReplyNo
+			reply[0] = protocol.ReplyNo
 			c.Send(reply, p.Remote)
 			c.handler.OnError(err, p.Remote)
 		}

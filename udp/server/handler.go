@@ -33,7 +33,7 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"redalert/udp/protocal"
+	"redalert/udp/protocol"
 	"redalert/udp/remote"
 	"time"
 )
@@ -61,17 +61,17 @@ func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 func (sp *Provider) OnPacket(pack *Packet) error {
 	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
 
-	if pack.proto.HeaderType == protocal.HeaderRequestType {
+	if pack.proto.HeaderType == protocol.HeaderRequestType {
 		remote.Service.Update(pack.Remote, nilPack)
 
 		return nil
 	}
 
-	if pack.proto.HeaderType == protocal.HeaderFileFinishType {
+	if pack.proto.HeaderType == protocol.HeaderFileFinishType {
 		return nil
 	}
 
-	err := remote.Service.Update(pack.Remote, pack.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+pack.proto.PackSize])
+	err := remote.Service.Update(pack.Remote, pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+pack.proto.PackSize])
 	if err != nil {
 		return err
 	}

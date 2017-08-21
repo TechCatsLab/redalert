@@ -65,7 +65,7 @@ func init() {
 	}
 }
 
-// OnStartTransfor storage Remote for new client
+// OnStartTransfer storage Remote for new client
 func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote *net.UDPAddr) bool {
 	key := remote.IP.String() + ":" + string(remote.Port)
 	_, ok := r.remote[key]

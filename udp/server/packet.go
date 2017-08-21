@@ -36,13 +36,13 @@ import (
 	"net"
 	"os"
 
-	"redalert/udp/protocal"
+	"redalert/udp/protocol"
 	"redalert/udp/remote"
 )
 
 // Packet represent a UDP packet
 type Packet struct {
-	proto  protocal.Proto
+	proto  protocol.Proto
 	Body   []byte
 	Size   int
 	Remote *net.UDPAddr
@@ -93,13 +93,13 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	headerType := uint8(p.Body[0])
 
 	switch {
-	case headerType == protocal.HeaderRequestType:
+	case headerType == protocol.HeaderRequestType:
 		err = p.handleRequest(s)
 
-	case headerType == protocal.HeaderFileType:
+	case headerType == protocol.HeaderFileType:
 		err = p.handleFilePacket(s)
 
-	case headerType == protocal.HeaderFileFinishType:
+	case headerType == protocol.HeaderFileFinishType:
 		err = p.handleFileFinishPacket(s)
 	}
 
@@ -119,8 +119,8 @@ func (p *Packet) Reset() {
 }
 
 func (p *Packet) handleRequest(s *Service) error {
-	headerSize := binary.LittleEndian.Uint16(p.Body[protocal.HeaderSizeOffset:protocal.FileSizeOffset])
-	filename := string(p.Body[protocal.FileNameOffset:headerSize])
+	headerSize := binary.LittleEndian.Uint16(p.Body[protocol.HeaderSizeOffset:protocol.FileSizeOffset])
+	filename := string(p.Body[protocol.FileNameOffset:headerSize])
 
 	fmt.Printf("[handleRequest] header size is %d \n", headerSize)
 	fmt.Printf("file name is %s \n", filename)
@@ -133,7 +133,7 @@ func (p *Packet) handleRequest(s *Service) error {
 		return ErrDuplicated
 	}
 
-	file, err := os.Create(protocal.DefaultDir + filename)
+	file, err := os.Create(protocol.DefaultDir + filename)
 	if err != nil {
 		return err
 	}
@@ -146,9 +146,9 @@ func (p *Packet) handleRequest(s *Service) error {
 }
 
 func (p *Packet) handleFilePacket(s *Service) error {
-	order := binary.LittleEndian.Uint32(p.Body[protocal.PackOrderOffset:protocal.FixedHeaderSize])
-	availableSize := binary.LittleEndian.Uint16(p.Body[protocal.PackSizeOffset:protocal.PackCountOffset])
-	realBody := p.Body[protocal.FixedHeaderSize : protocal.FixedHeaderSize+availableSize]
+	order := binary.LittleEndian.Uint32(p.Body[protocol.PackOrderOffset:protocol.FixedHeaderSize])
+	availableSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
+	realBody := p.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+availableSize]
 
 	fmt.Printf("[handleFilePacket] receive pack file from %v \n", p.Remote)
 
@@ -189,7 +189,7 @@ func (p *Packet) handleFileFinishPacket(s *Service) error {
 
 	fmt.Print("receive finish \n")
 
-	if string(p.Body[protocal.FixedHeaderSize:protocal.FixedHeaderSize+16]) != string(hash) {
+	if string(p.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) != string(hash) {
 		return ErrHashNotMatch
 	}
 
