@@ -88,6 +88,14 @@ func NewClient(conf *Conf) (*Client, error) {
 		log.Fatalln("[ERROR]:Get fileinfo:", err)
 	}
 
+	if conf.PacketSize < protocol.FirstPacketSize {
+		conf.PacketSize = protocol.FirstPacketSize
+	}
+
+	if conf.PacketSize > protocol.MaxPacketSize {
+		conf.PacketSize = protocol.MaxPacketSize
+	}
+
 	if uint64(fileInfo.Size())%uint64(conf.PacketSize) != 0 {
 		packCount = uint32(fileInfo.Size()/int64(conf.PacketSize)) + 1
 	} else {

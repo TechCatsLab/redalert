@@ -74,6 +74,7 @@ const (
 	DefaultDir = ""
 
 	FirstPacketSize = 1 << 9
+	MaxPacketSize   = 1 << 13
 )
 
 // Proto - 传输协议结构
