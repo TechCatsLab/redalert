@@ -42,17 +42,12 @@ var sendCmd = &cobra.Command{
 			RemoteAddress: host,
 			RemotePort:    port,
 			PacketSize:    packSize,
+			FileName:      args[0],
 		}
 
 		cli, err := client.NewClient(conf)
 		if err != nil {
 			fmt.Println("Remote server not receive:", err)
-			return
-		}
-
-		err = cli.PrepareFile(args[0])
-		if err != nil {
-			fmt.Println("Prepare client error:", err)
 			return
 		}
 

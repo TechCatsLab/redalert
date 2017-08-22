@@ -73,7 +73,7 @@ const (
 	// DefaultDir is default dir for save file
 	DefaultDir = ""
 
-	FirstPacketSize = 1 << 13
+	FirstPacketSize = 1 << 9
 )
 
 // Proto - 传输协议结构
