@@ -128,9 +128,9 @@ func (r *remoteAddrTable) Close(remote *net.UDPAddr, err error) {
 	}
 
 	rem.File.Close()
-	os.Remove(rem.FileName)
+	delete(r.remote, key)
 	rem.Timer.Stop()
 	if err != nil {
-		delete(r.remote, key)
+		os.Remove(rem.FileName)
 	}
 }

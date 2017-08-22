@@ -40,7 +40,7 @@ const (
 	PackOrderSize   = 4
 	FixedHeaderSize = HeaderTypeSize + HeaderSize + FileSize + PackSize + PackCountSize + PackOrderSize
 
-	ReplySize = 1
+	ReplySize = 4
 
 	RawHeaderSize    = int32(1<<6) - 1
 	ReqRawHeaderSize = int32(1<<8) - 1
@@ -64,17 +64,16 @@ const (
 	HeaderFileType       = 0x20
 	HeaderFileFinishType = 0x30
 
-	// ReplyOk - define ReplyType
-	ReplyOk uint8 = 10
-	ReplyNo uint8 = 5
-
 	// ReplyFinish - define Reply finish
 	ReplyFinish = 1<<32 - 1
+	ReplyError  = 1<<32 - 2
+
+	RepeatHandle = 1<<32 - 3
 
 	// DefaultDir is default dir for save file
 	DefaultDir = ""
 
-	FirstPacketSize = 1 << 10
+	FirstPacketSize = 1 << 13
 )
 
 // Proto - 传输协议结构

@@ -31,7 +31,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"redalert/udp/protocol"
 	"redalert/udp/remote"
@@ -52,7 +51,7 @@ var nilPack = make([]byte, 0)
 
 // OnError handle when encounters error
 func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
-	log.Fatalf("crash with error %v", err)
+	fmt.Printf("[OnError] crash with error %v \n", err)
 	time.Sleep(1 * time.Second)
 	remote.Service.Close(addr, err)
 }
@@ -61,13 +60,13 @@ func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 func (sp *Provider) OnPacket(pack *Packet) error {
 	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
 
-	if pack.proto.HeaderType == protocol.HeaderRequestType {
-		remote.Service.Update(pack.Remote, nilPack)
-
+	if pack.proto.HeaderType == protocol.HeaderFileFinishType || pack.Repeat == 1 {
 		return nil
 	}
 
-	if pack.proto.HeaderType == protocol.HeaderFileFinishType {
+	if pack.proto.HeaderType == protocol.HeaderRequestType {
+		remote.Service.Update(pack.Remote, nilPack)
+
 		return nil
 	}
 

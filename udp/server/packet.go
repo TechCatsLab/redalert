@@ -45,6 +45,7 @@ type Packet struct {
 	proto  protocol.Proto
 	Body   []byte
 	Size   int
+	Repeat uint8
 	Remote *net.UDPAddr
 }
 
@@ -82,7 +83,7 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	var err error
 	// size, remote, err := s.conn.ReadFromUDP(p.Body)
-	fmt.Printf("[Read] read bytes from %v \n", p.Remote)
+	fmt.Printf("[Read] read bytes from %v \n", remote)
 	// if err != nil {
 	// return err
 	// }
@@ -158,10 +159,16 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	}
 
 	fmt.Printf("[ORDER] is %d \n", order)
+	fmt.Printf("[ORDER] in map is %d \n", rem.PackCount)
 
 	if order == rem.PackCount {
+		fmt.Printf("[Repeat packet] %d \n", order)
+		p.proto.PackOrder = order
+		p.Repeat = 1
 		return nil
 	}
+
+	p.Repeat = 0
 
 	if order-rem.PackCount > 1 {
 		return ErrInvalidOrder
@@ -177,6 +184,7 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	}
 
 	p.proto.PackSize = availableSize
+	p.proto.PackOrder = order
 
 	return nil
 }

@@ -30,6 +30,7 @@
 package server
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 
@@ -139,12 +140,12 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 }
 
 func (c *Service) receive() {
-	p := NewPacket(1024)
-	reply := make([]byte, 1)
+	p := NewPacket(protocol.FirstPacketSize)
+	reply := make([]byte, protocol.ReplySize)
 
 	for {
 		size, remote, err := c.conn.ReadFromUDP(p.Body)
-		fmt.Printf("[receive] size %d \n", size)
+		fmt.Printf("[receive] size %d FROM  %v \n", size, remote)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
@@ -152,7 +153,7 @@ func (c *Service) receive() {
 
 		if err == nil {
 			err = c.handler.OnPacket(p)
-			reply[0] = protocol.ReplyOk
+			binary.LittleEndian.PutUint32(reply, p.proto.PackOrder)
 			if err == nil && p.Body[0] != protocol.HeaderFileFinishType {
 				c.Send(reply, p.Remote)
 			}
@@ -160,7 +161,7 @@ func (c *Service) receive() {
 		}
 
 		if err != nil {
-			reply[0] = protocol.ReplyNo
+			binary.LittleEndian.PutUint32(reply, protocol.ReplyError)
 			c.Send(reply, p.Remote)
 			c.handler.OnError(err, p.Remote)
 		}
