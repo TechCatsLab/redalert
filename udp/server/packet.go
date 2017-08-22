@@ -50,14 +50,20 @@ type Packet struct {
 }
 
 var (
-	ErrDuplicated      = errors.New("Duplicated request for one file")
-	ErrDiffrentFile    = errors.New("Client try to send multi file")
+	//ErrDuplicated error of duplicated request
+	ErrDuplicated = errors.New("Duplicated request")
+	// ErrInvalidFilePack error for client try send file pack before request
 	ErrInvalidFilePack = errors.New("Invalid file packet")
-	ErrInvalidOrder    = errors.New("Invalid pack order")
-	ErrWrite           = errors.New("write file fail")
-	ErrReset           = errors.New("failed with reset timer")
-	ErrNotExists       = errors.New("Remote Address not exists")
-	ErrHashNotMatch    = errors.New("hash value not match")
+	// ErrInvalidOrder error for when pack order is mess
+	ErrInvalidOrder = errors.New("Invalid pack order")
+	// ErrWrite error for write file error
+	ErrWrite = errors.New("write file fail")
+	// ErrReset error for reset timer failed
+	ErrReset = errors.New("failed with reset timer")
+	// ErrNotExists for client cannot find client address from client table
+	ErrNotExists = errors.New("Remote Address not exists")
+	// ErrHashNotMatch error for hash from client not match with hash which calculated by server
+	ErrHashNotMatch = errors.New("hash value not match")
 )
 
 // NewPacket generates a Packet with a len([]byte) == cap.
@@ -79,7 +85,6 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 }
 
 // Read read packet and handle on the base of type
-// TODO: 考虑把从 UDP 中读取操作从 receive() 函数放回到 Read() 函数中
 func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	var err error
 	// size, remote, err := s.conn.ReadFromUDP(p.Body)
@@ -119,18 +124,16 @@ func (p *Packet) Reset() {
 	p.Remote = nil
 }
 
+// resolve request type pack and add the client who send this pack to online table
 func (p *Packet) handleRequest(s *Service) error {
 	headerSize := binary.LittleEndian.Uint16(p.Body[protocol.HeaderSizeOffset:protocol.FileSizeOffset])
+	packSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
 	filename := string(p.Body[protocol.FileNameOffset:headerSize])
 
 	fmt.Printf("[handleRequest] header size is %d \n", headerSize)
 	fmt.Printf("file name is %s \n", filename)
 
-	if rem, ok := remote.Service.GetRemote(p.Remote); ok {
-		if filename != rem.FileName {
-			return ErrDiffrentFile
-		}
-
+	if _, ok := remote.Service.GetRemote(p.Remote); ok {
 		return ErrDuplicated
 	}
 
@@ -139,13 +142,15 @@ func (p *Packet) handleRequest(s *Service) error {
 		return err
 	}
 
-	if ok := remote.Service.OnStartTransfor(filename, file, p.Remote); !ok {
-		return ErrDiffrentFile
-	}
+	addr := p.Remote
+	p = NewPacket(int(packSize))
+	p.Remote = addr
+	remote.Service.OnStartTransfor(filename, file, p.Remote)
 
 	return nil
 }
 
+// resolve file type pack and write the content of pack to file
 func (p *Packet) handleFilePacket(s *Service) error {
 	order := binary.LittleEndian.Uint32(p.Body[protocol.PackOrderOffset:protocol.FixedHeaderSize])
 	availableSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
@@ -189,8 +194,8 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	return nil
 }
 
+// when file transfer finish, calculate hash of file and compare with hash send by client
 func (p *Packet) handleFileFinishPacket(s *Service) error {
-	fmt.Printf("[handleFileFinishPacket] client %v finish sending \n", p.Remote)
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		fmt.Printf("query from map-> file name is %v \n", rem)
@@ -198,14 +203,14 @@ func (p *Packet) handleFileFinishPacket(s *Service) error {
 	}
 
 	hash := rem.Hash.Sum(nil)
-
 	fmt.Print("receive finish \n")
-
 	if string(p.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) != string(hash) {
 		return ErrHashNotMatch
 	}
 
 	remote.Service.Close(p.Remote, nil)
+
+	p = pack
 
 	return nil
 }

@@ -60,6 +60,8 @@ type Service struct {
 	close   chan struct{}
 }
 
+var pack = NewPacket(protocol.FirstPacketSize)
+
 // NewServer start a new UDP service
 func NewServer(conf *Conf, handler Handler) (*Service, error) {
 	var udpPort string
@@ -94,12 +96,19 @@ func NewServer(conf *Conf, handler Handler) (*Service, error) {
 	}
 	server.prepare()
 
-	go server.handlerClient()
+	go server.handleClient()
 
 	return server, nil
 }
 
-func (c *Service) handlerClient() {
+// set buffer size
+func (c *Service) prepare() {
+	c.conn.SetReadBuffer(defaultReadBuffer)
+	c.conn.SetWriteBuffer(defaultWriteBuffer)
+}
+
+// handle event of file transfer
+func (c *Service) handleClient() {
 	go c.receive()
 
 	for {
@@ -118,11 +127,6 @@ func (c *Service) handlerClient() {
 	}
 }
 
-func (c *Service) prepare() {
-	c.conn.SetReadBuffer(defaultReadBuffer)
-	c.conn.SetWriteBuffer(defaultWriteBuffer)
-}
-
 // Close close current service
 func (c *Service) Close() {
 	c.close <- struct{}{}
@@ -139,31 +143,31 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 	c.sender <- pack
 }
 
+// read from udp and handle it
 func (c *Service) receive() {
-	p := NewPacket(protocol.FirstPacketSize)
 	reply := make([]byte, protocol.ReplySize)
 
 	for {
-		size, remote, err := c.conn.ReadFromUDP(p.Body)
+		size, remote, err := c.conn.ReadFromUDP(pack.Body)
 		fmt.Printf("[receive] size %d FROM  %v \n", size, remote)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
-		err = p.Read(c, size, remote)
+		err = pack.Read(c, size, remote)
 
 		if err == nil {
-			err = c.handler.OnPacket(p)
-			binary.LittleEndian.PutUint32(reply, p.proto.PackOrder)
-			if err == nil && p.Body[0] != protocol.HeaderFileFinishType {
-				c.Send(reply, p.Remote)
+			err = c.handler.OnPacket(pack)
+			binary.LittleEndian.PutUint32(reply, pack.proto.PackOrder)
+			if err == nil && pack.Body[0] != protocol.HeaderFileFinishType {
+				c.Send(reply, pack.Remote)
 			}
 
 		}
 
 		if err != nil {
 			binary.LittleEndian.PutUint32(reply, protocol.ReplyError)
-			c.Send(reply, p.Remote)
-			c.handler.OnError(err, p.Remote)
+			c.Send(reply, pack.Remote)
+			c.handler.OnError(err, pack.Remote)
 		}
 	}
 }
