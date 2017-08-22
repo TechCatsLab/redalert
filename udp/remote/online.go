@@ -66,26 +66,20 @@ func init() {
 }
 
 // OnStartTransfer storage Remote for new client
-func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote *net.UDPAddr) bool {
+func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote *net.UDPAddr) {
 	key := remote.IP.String() + ":" + string(remote.Port)
-	_, ok := r.remote[key]
-	if !ok {
-		rem := Remote{
-			FileName: filename,
-			File:     file,
-			Timer: time.AfterFunc(3*time.Minute, func() {
-				r.Close(remote, errTimeOut)
-			}),
-			Hash: md5.New(),
-		}
-
-		r.remote[key] = &rem
-
-		fmt.Printf("[OnStartTransfor] create a table %v \n", remote)
-		return true
+	rem := Remote{
+		FileName: filename,
+		File:     file,
+		Timer: time.AfterFunc(3*time.Minute, func() {
+			r.Close(remote, errTimeOut)
+		}),
+		Hash: md5.New(),
 	}
 
-	return false
+	r.remote[key] = &rem
+
+	fmt.Printf("[OnStartTransfor] create a table %v \n", remote)
 }
 
 // GetRemote return *Remote and true if exists

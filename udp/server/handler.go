@@ -56,7 +56,7 @@ func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 	remote.Service.Close(addr, err)
 }
 
-// OnPacket reset timer if receive packet success
+// OnPacket update client info in the online table according to pack HeaderType
 func (sp *Provider) OnPacket(pack *Packet) error {
 	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
 
