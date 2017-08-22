@@ -35,6 +35,7 @@ import (
 	"net"
 
 	"redalert/udp/protocol"
+	"redalert/udp/remote"
 )
 
 const (
@@ -61,6 +62,7 @@ type Service struct {
 }
 
 var pack = NewPacket(protocol.FirstPacketSize)
+var reply = make([]byte, protocol.ReplySize)
 
 // NewServer start a new UDP service
 func NewServer(conf *Conf, handler Handler) (*Service, error) {
@@ -123,6 +125,10 @@ func (c *Service) handleClient() {
 			if err != nil {
 				c.handler.OnError(err, nil)
 			}
+		case <-remote.TimeOut:
+			pack.Body = pack.Body[:protocol.FirstPacketSize]
+			pack.proto.PackOrder = 0
+			pack.proto.PackSize = 0
 		}
 	}
 }
@@ -134,27 +140,25 @@ func (c *Service) Close() {
 
 // Send send a packet to remote
 func (c *Service) Send(body []byte, remote *net.UDPAddr) {
-	pack := &Packet{
+	packet := &Packet{
 		Body:   body,
 		Size:   len(body),
 		Remote: remote,
 	}
 
-	c.sender <- pack
+	c.sender <- packet
 }
 
 // read from udp and handle it
 func (c *Service) receive() {
-	reply := make([]byte, protocol.ReplySize)
-
 	for {
 		size, remote, err := c.conn.ReadFromUDP(pack.Body)
 		fmt.Printf("[receive] size %d FROM  %v \n", size, remote)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
-		err = pack.Read(c, size, remote)
 
+		err = pack.Read(c, size, remote)
 		if err == nil {
 			err = c.handler.OnPacket(pack)
 			binary.LittleEndian.PutUint32(reply, pack.proto.PackOrder)

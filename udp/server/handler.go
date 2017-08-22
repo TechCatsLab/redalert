@@ -70,9 +70,11 @@ func (sp *Provider) OnPacket(pack *Packet) error {
 		return nil
 	}
 
-	err := remote.Service.Update(pack.Remote, pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+pack.proto.PackSize])
-	if err != nil {
-		return err
+	if pack.proto.HeaderType == protocol.HeaderFileType {
+		err := remote.Service.Update(pack.Remote, pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+pack.proto.PackSize])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

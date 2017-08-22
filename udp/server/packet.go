@@ -72,6 +72,7 @@ func NewPacket(cap int) *Packet {
 		Body:   make([]byte, cap),
 		Size:   0,
 		Remote: nil,
+		proto:  protocol.Proto{},
 	}
 }
 
@@ -130,7 +131,7 @@ func (p *Packet) handleRequest(s *Service) error {
 	packSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
 	filename := string(p.Body[protocol.FileNameOffset:headerSize])
 
-	fmt.Printf("[handleRequest] header size is %d \n", headerSize)
+	fmt.Printf("[handleRequest] header size is %d and packet size is %d \n", headerSize, packSize)
 	fmt.Printf("file name is %s \n", filename)
 
 	if _, ok := remote.Service.GetRemote(p.Remote); ok {
@@ -142,9 +143,8 @@ func (p *Packet) handleRequest(s *Service) error {
 		return err
 	}
 
-	addr := p.Remote
-	p = NewPacket(int(packSize))
-	p.Remote = addr
+	p.Body = make([]byte, packSize)
+	p.Body[0] = protocol.HeaderRequestType
 	remote.Service.OnStartTransfor(filename, file, p.Remote)
 
 	return nil
@@ -211,6 +211,8 @@ func (p *Packet) handleFileFinishPacket(s *Service) error {
 	remote.Service.Close(p.Remote, nil)
 
 	p = pack
+	p.proto.PackOrder = 0
+	p.proto.PackSize = 0
 
 	return nil
 }
