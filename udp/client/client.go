@@ -38,7 +38,7 @@ import (
 	"os"
 	"time"
 
-	"redalert/udp/protocol"
+	"redalert/protocol"
 )
 
 const (

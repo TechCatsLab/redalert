@@ -24,66 +24,50 @@
 
 /*
 * Revision History
-*     Initial: 2017/08/11          Yusan Kurban
+*     Initial: 2017/08/23          Yusan Kurban
  */
 
 package client
 
 import (
+	"crypto/md5"
 	"fmt"
-	"net"
-
-	"redalert/protocol"
+	"hash"
+	"os"
 )
 
-const (
-	bufferSize = 65336
-)
-
-type (
-	// Conf config of server and file info
-	Conf struct {
-		Address  string
-		Port     string
-		FileName string
-		PackSize int
-	}
-
-	// Client - TCP client
-	Client struct {
-		conf   *Conf
-		conn   *net.TCPConn
-		proto  *protocol.Proto
-		handle handler
-	}
-)
-
-// NewClient creat a new tcp client
-func NewClient(conf *Conf, hand handler) (*Client, error) {
-	addr, err := net.ResolveTCPAddr("tcp", conf.Address+":"+conf.Port)
-	if err != nil {
-		fmt.Printf("[ERROR] Can't resolve tcp address with error %v \n", err)
-		return nil, err
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		fmt.Printf("[ERROR] Dial crash with error: %v \n", err)
-		return nil, err
-	}
-
-	client := &Client{
-		conf:   conf,
-		conn:   conn,
-		proto:  &protocol.Proto{},
-		handle: hand,
-	}
-
-	client.prepareBuffer()
-
-	return client, nil
+type handler interface {
+	OnError(error)
+	OnClose() error
+	OnReceive(int) error
+	OnSend(int) error
 }
-func (c *Client) prepareBuffer() {
-	c.conn.SetReadBuffer(bufferSize)
-	c.conn.SetWriteBuffer(bufferSize)
+
+// DefaultHandler - TCP pack handler
+type DefaultHandler struct {
+	replyPack []byte
+	sendPack  []byte
+	hash      hash.Hash
+	file      *os.File
+	FileName  os.FileInfo
+}
+
+func (h *DefaultHandler) request(name string) error {
+	file, err := os.Open(name)
+	if err != nil {
+		fmt.Printf("[ERROR] Open file crash with error: %v \n", err)
+		return err
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Printf("[ERROR] Get file info crash with error: %v \n", err)
+		return err
+	}
+
+	h.file = file
+	h.FileName = fileInfo
+	h.hash = md5.New()
+
+	return nil
 }
