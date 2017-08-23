@@ -36,7 +36,7 @@ import (
 	"net"
 	"os"
 
-	"redalert/udp/protocol"
+	"redalert/protocol"
 	"redalert/udp/remote"
 )
 

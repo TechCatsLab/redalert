@@ -34,7 +34,7 @@ import (
 	"fmt"
 	"net"
 
-	"redalert/udp/protocol"
+	"redalert/protocol"
 	"redalert/udp/remote"
 )
 

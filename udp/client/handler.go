@@ -39,7 +39,7 @@ import (
 	"os"
 	"strings"
 
-	"redalert/udp/protocol"
+	"redalert/protocol"
 )
 
 // Handler interface
