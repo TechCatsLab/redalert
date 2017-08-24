@@ -29,9 +29,23 @@
 
 package client
 
-type handler interface {
-	OnError(error)
-	OnClose() error
-	OnReceive(int) error
-	OnSend(int) error
+import (
+	"errors"
+	"hash"
+	"os"
+)
+
+// FileInfo - TCP pack information
+type FileInfo struct {
+	replyPack  []byte
+	headPack   []byte
+	hash       hash.Hash
+	file       *os.File
+	fileName   os.FileInfo
+	fileOffset uint32
 }
+
+var (
+	errInvalidHeaderSize = errors.New("Header size out of range")
+	errWriteIncomplete   = errors.New("Write to tcp not complate")
+)
