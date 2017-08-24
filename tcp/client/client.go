@@ -30,8 +30,11 @@
 package client
 
 import (
+	"crypto/md5"
+	"encoding/binary"
 	"fmt"
 	"net"
+	"os"
 
 	"redalert/protocol"
 )
@@ -55,6 +58,7 @@ type (
 		conn   *net.TCPConn
 		proto  *protocol.Proto
 		handle handler
+		info   *FileInfo
 	}
 )
 
@@ -77,13 +81,80 @@ func NewClient(conf *Conf, hand handler) (*Client, error) {
 		conn:   conn,
 		proto:  &protocol.Proto{},
 		handle: hand,
+		info:   &FileInfo{},
 	}
 
 	client.prepareBuffer()
+
+	if err = client.initFile(conf.FileName); err != nil {
+		fmt.Printf("[ERROR] initFile crash with error: %v \n", err)
+	}
 
 	return client, nil
 }
 func (c *Client) prepareBuffer() {
 	c.conn.SetReadBuffer(bufferSize)
 	c.conn.SetWriteBuffer(bufferSize)
+}
+
+func (c *Client) initFile(name string) error {
+	file, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	c.info.file = file
+	c.info.fileName = fileInfo
+	c.info.hash = md5.New()
+
+	return nil
+}
+
+func (c *Client) consult() error {
+	c.proto.FileSize = uint64(c.info.fileName.Size())
+	c.proto.HeaderSize = protocol.HeaderSize
+	c.proto.PackSize = protocol.FirstPacketSize
+	c.info.headPack = make([]byte, protocol.FirstPacketSize)
+
+	err := c.packHead(c.info.headPack)
+	if err != nil {
+		return err
+	}
+
+	// write file name to c.info.headPack
+	// and send to server
+
+	return nil
+}
+
+func (c *Client) send(pack []byte) error {
+	n, err := c.conn.Write(pack)
+	if err != nil {
+		return err
+	}
+
+	if n < len(pack) {
+		return errWriteIncomplete
+	}
+
+	return nil
+}
+
+func (c *Client) packHead(b []byte) error {
+	if len(b) < protocol.FixedHeaderSize {
+		return errInvalidHeaderSize
+	}
+
+	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], c.proto.HeaderSize)
+	binary.LittleEndian.PutUint64(b[protocol.FileSizeOffset:], c.proto.FileSize)
+	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], c.proto.PackSize)
+	binary.LittleEndian.PutUint32(b[protocol.PackCountOffset:], c.proto.PackCount)
+	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], c.proto.PackOrder)
+
+	return nil
 }
