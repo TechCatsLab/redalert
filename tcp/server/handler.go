@@ -24,14 +24,16 @@
 
 /*
  * Revision History:
- *     Initial: 2017/08/24        Liu JiaChang
+ *     Initial: 2017/08/10        Liu JiaChang
  */
 
 package server
 
-// Conf Tcp server configure
-type Conf struct {
-	Addr      string // Local Addr
-	Port      string // Local Port
-	ConnLimit int    // Connection Limit number
+import "net"
+
+// Handler represent operations by UDP service
+type Handler interface {
+	OnError(error, *net.TCPAddr)
+	OnPacket() error
+	OnClose() error
 }
