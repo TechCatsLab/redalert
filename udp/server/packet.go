@@ -45,7 +45,7 @@ type Packet struct {
 	proto  protocol.Proto
 	Body   []byte
 	Size   int
-	Repeat uint8
+	Repeat uint8 // flag of packet is if repeat packet
 	Remote *net.UDPAddr
 }
 
@@ -117,12 +117,6 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	p.proto.HeaderType = uint8(p.Body[0])
 
 	return nil
-}
-
-// Reset the buffer
-func (p *Packet) Reset() {
-	p.Size = 0
-	p.Remote = nil
 }
 
 // resolve request type pack and add the client who send this pack to online table
