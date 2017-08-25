@@ -33,6 +33,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -167,4 +168,28 @@ func (c *Client) packHead(b []byte) error {
 	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], c.proto.PackOrder)
 
 	return nil
+}
+
+func (c *Client) receive(conn *net.TCPConn) {
+	go func() {
+		num, err := conn.Read(c.info.replyPack)
+		if err != nil {
+			fmt.Printf("[ERROR]:readFromUDP - read num %d byte error：%v \n", num, err)
+			return
+		}
+
+		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
+
+		if protocol.ReplyFinish == packOrder {
+			log.Println("Pass file finish.")
+			return
+		}
+
+		log.Println("[RECEIVE]:Receive length:", num)
+
+		c.proto.PackOrder = packOrder + 1
+
+		fmt.Printf("[RECEIVE]: Pack order: %d \n", c.proto.PackOrder)
+
+	}()
 }
