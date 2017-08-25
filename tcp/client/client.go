@@ -35,6 +35,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"redalert/protocol"
 )
@@ -126,8 +127,17 @@ func (c *Client) consult() error {
 		return err
 	}
 
-	// write file name to c.info.headPack
-	// and send to server
+	c.info.headPack[0] = byte(protocol.HeaderRequestType)
+	nameReader := strings.NewReader(c.info.fileName.Name())
+	nameReader.Read(c.info.headPack[protocol.FixedHeaderSize:])
+
+	n, err := c.conn.Write(c.info.headPack)
+	if err != nil {
+		fmt.Printf("[ERROR] Write consult pack error:%v \n", err)
+		return err
+	}
+
+	fmt.Printf("[WRITE] write %d byte \n", n)
 
 	return nil
 }

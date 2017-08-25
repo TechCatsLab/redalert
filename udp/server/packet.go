@@ -96,7 +96,6 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 
 	p.Remote = remote
 	p.Size = size
-
 	headerType := uint8(p.Body[0])
 
 	switch {
