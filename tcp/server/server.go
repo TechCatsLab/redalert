@@ -30,8 +30,12 @@
 package server
 
 import (
+	"encoding/binary"
 	"log"
 	"net"
+	"os"
+	"redalert/protocol"
+	"time"
 )
 
 // Server tcp server
@@ -41,14 +45,14 @@ type Server struct {
 	CountChan chan bool
 }
 
-// NewServer new TCP server
-func NewServer(conf *Conf) *Server {
+// StartServer start a new TCP server
+func StartServer(conf *Conf) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", conf.Addr+":"+conf.Port)
 	if err != nil {
 		log.Fatalln("[ERROR]:Can't resolve address:", err)
 	}
 
-	_, err = net.ListenTCP("tcp", tcpAddr)
+	listener, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
 		log.Fatalln("[ERROR]:Can't resolve address:", err)
 	}
@@ -59,5 +63,66 @@ func NewServer(conf *Conf) *Server {
 		CountChan: make(chan bool),
 	}
 
-	return s
+	countConn(s)
+
+	for {
+		if s.totalConn >= s.conf.MaxConn {
+			time.Sleep(time.Second * 2)
+		} else {
+			conn, err := listener.AcceptTCP()
+			if err != nil {
+				log.Println("[ERROR]:listen error", err)
+			} else {
+				s.onConn(conn)
+			}
+		}
+	}
+}
+
+func (s *Server) onConn(conn *net.TCPConn) {
+	pack := make([]byte, protocol.FirstPacketSize)
+
+	proto := protocol.Proto{
+		HeaderType: pack[0],
+		HeaderSize: binary.LittleEndian.Uint16(pack[protocol.HeaderSizeOffset:protocol.FileSizeOffset]),
+		PackSize:   binary.LittleEndian.Uint16(pack[protocol.PackSizeOffset:protocol.PackCountOffset]),
+		PackCount:  binary.LittleEndian.Uint32(pack[protocol.PackCountOffset:protocol.PackOrderOffset]),
+		PackOrder:  binary.LittleEndian.Uint32(pack[protocol.PackOrderOffset:protocol.FixedHeaderSize]),
+	}
+
+	log.Println("[CONN]:Begin create file")
+
+	filename := string(pack[protocol.FileNameOffset:proto.HeaderSize])
+
+	file, err := os.Create(protocol.DefaultDir + filename)
+	if err != nil {
+		log.Println("[ERROR]:Create file error", err)
+		return
+	}
+
+	session := Session{
+		Pack:  make([]byte, proto.PackSize),
+		file:  file,
+		proto: &proto,
+	}
+
+	s.CountChan <- true
+	session.Start()
+}
+
+func countConn(s *Server) {
+	go func() {
+		for {
+			count := <-s.CountChan
+			if count {
+				s.totalConn++
+			} else {
+				s.totalConn--
+			}
+
+			if s.totalConn == 0 {
+				os.Exit(0)
+			}
+		}
+	}()
 }
