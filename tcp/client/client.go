@@ -61,6 +61,7 @@ type (
 		proto  *protocol.Proto
 		handle handler
 		info   *FileInfo
+		close  chan struct{}
 	}
 )
 
@@ -83,7 +84,11 @@ func NewClient(conf *Conf, hand handler) (*Client, error) {
 		conn:   conn,
 		proto:  &protocol.Proto{},
 		handle: &Provider{},
-		info:   &FileInfo{},
+		close:  make(chan struct{}),
+		info: &FileInfo{
+			filePack:  make([]byte, conf.PackSize),
+			replyPack: make([]byte, protocol.ReplySize),
+		},
 	}
 
 	client.prepareBuffer()

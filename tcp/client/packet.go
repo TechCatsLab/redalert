@@ -30,15 +30,22 @@
 package client
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"hash"
+	"io"
 	"os"
+
+	"redalert/protocol"
 )
 
 // FileInfo - TCP pack information
 type FileInfo struct {
+	client     *Client
 	replyPack  []byte
 	headPack   []byte
+	filePack   []byte
 	hash       hash.Hash
 	file       *os.File
 	fileName   os.FileInfo
@@ -49,3 +56,35 @@ var (
 	errInvalidHeaderSize = errors.New("Header size out of range")
 	errWriteIncomplete   = errors.New("Write to tcp not complate")
 )
+
+// SendFile send file pack by size
+func (fi *FileInfo) SendFile(size int) error {
+	n, err := fi.file.Read(fi.filePack[protocol.FixedHeaderSize:])
+	if err == io.EOF {
+		hashResult := fi.hash.Sum(nil)
+
+		reader := bytes.NewReader(hashResult)
+		reader.Read(fi.filePack[protocol.FixedHeaderSize:])
+		fi.filePack[0] = protocol.HeaderFileFinishType
+
+		fi.client.conn.Write(fi.headPack)
+		fi.client.close <- struct{}{}
+
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	fi.hash.Write(fi.filePack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+n])
+
+	binary.LittleEndian.PutUint16(fi.filePack[protocol.PackSizeOffset:], uint16(n))
+
+	_, err = fi.client.conn.Write(fi.filePack)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
