@@ -33,9 +33,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"os"
+	"strings"
 
 	"redalert/protocol"
 )
@@ -55,7 +57,49 @@ type FileInfo struct {
 var (
 	errInvalidHeaderSize = errors.New("Header size out of range")
 	errWriteIncomplete   = errors.New("Write to tcp not complate")
+	errFromServer        = errors.New("Got error from server")
+	errPackOrder         = errors.New("Pack order messed")
 )
+
+// first pack which for consult
+func (fi *FileInfo) consult() error {
+	fi.client.proto.FileSize = uint64(fi.fileName.Size())
+	fi.client.proto.HeaderSize = protocol.HeaderSize
+	fi.client.proto.PackSize = protocol.FirstPacketSize
+	fi.headPack = make([]byte, protocol.FirstPacketSize)
+
+	err := fi.packHead(fi.headPack)
+	if err != nil {
+		return err
+	}
+
+	fi.headPack[0] = byte(protocol.HeaderRequestType)
+	nameReader := strings.NewReader(fi.fileName.Name())
+	nameReader.Read(fi.headPack[protocol.FixedHeaderSize:])
+
+	n, err := fi.client.conn.Write(fi.headPack)
+	if err != nil {
+		fi.client.handle.OnError(err)
+	}
+
+	fmt.Printf("[WRITE] write %d byte \n", n)
+
+	return nil
+}
+
+func (fi *FileInfo) packHead(b []byte) error {
+	if len(b) < protocol.FixedHeaderSize {
+		return errInvalidHeaderSize
+	}
+
+	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], fi.client.proto.HeaderSize)
+	binary.LittleEndian.PutUint64(b[protocol.FileSizeOffset:], fi.client.proto.FileSize)
+	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], fi.client.proto.PackSize)
+	binary.LittleEndian.PutUint32(b[protocol.PackCountOffset:], fi.client.proto.PackCount)
+	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], fi.client.proto.PackOrder)
+
+	return nil
+}
 
 // SendFile send file pack by size
 func (fi *FileInfo) SendFile(size int) error {

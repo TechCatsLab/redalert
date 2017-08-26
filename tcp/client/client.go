@@ -33,10 +33,8 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"net"
 	"os"
-	"strings"
 
 	"redalert/protocol"
 )
@@ -122,31 +120,6 @@ func (c *Client) initFile(name string) error {
 	return nil
 }
 
-func (c *Client) consult() error {
-	c.proto.FileSize = uint64(c.info.fileName.Size())
-	c.proto.HeaderSize = protocol.HeaderSize
-	c.proto.PackSize = protocol.FirstPacketSize
-	c.info.headPack = make([]byte, protocol.FirstPacketSize)
-
-	err := c.packHead(c.info.headPack)
-	if err != nil {
-		return err
-	}
-
-	c.info.headPack[0] = byte(protocol.HeaderRequestType)
-	nameReader := strings.NewReader(c.info.fileName.Name())
-	nameReader.Read(c.info.headPack[protocol.FixedHeaderSize:])
-
-	n, err := c.conn.Write(c.info.headPack)
-	if err != nil {
-		c.handle.OnError(err)
-	}
-
-	fmt.Printf("[WRITE] write %d byte \n", n)
-
-	return nil
-}
-
 func (c *Client) send(pack []byte) error {
 	n, err := c.conn.Write(pack)
 	if err != nil {
@@ -160,40 +133,35 @@ func (c *Client) send(pack []byte) error {
 	return nil
 }
 
-func (c *Client) packHead(b []byte) error {
-	if len(b) < protocol.FixedHeaderSize {
-		return errInvalidHeaderSize
-	}
-
-	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], c.proto.HeaderSize)
-	binary.LittleEndian.PutUint64(b[protocol.FileSizeOffset:], c.proto.FileSize)
-	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], c.proto.PackSize)
-	binary.LittleEndian.PutUint32(b[protocol.PackCountOffset:], c.proto.PackCount)
-	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], c.proto.PackOrder)
-
-	return nil
-}
-
 func (c *Client) receive(conn *net.TCPConn) {
-	go func() {
-		num, err := conn.Read(c.info.replyPack)
-		if err != nil {
-			c.handle.OnError(err)
+		for {
+			_, err := conn.Read(c.info.replyPack)
+			if err != nil {
+				c.handle.OnError(err)
+			}
+
+			packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
+
+			if packOrder == protocol.ReplyError {
+				c.handle.OnError(errFromServer)
+			}
+
+			if packOrder == c.proto.PackOrder {
+				// resend last pack
+			}
+
+			if packOrder-c.proto.PackOrder > 1 {
+				c.handle.OnError(errPackOrder)
+			}
+
+			err = c.info.SendFile(c.conf.PackSize)
+			if err != nil {
+				c.handle.OnError(err)
+			}
+
+			c.proto.PackOrder = packOrder + 1
+
+			fmt.Printf("[RECEIVE]: Pack order: %d \n", c.proto.PackOrder)
+
 		}
-
-		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
-
-		if protocol.ReplyFinish == packOrder {
-			c.handle.OnClose()
-			log.Println("Pass file finish.")
-			return
-		}
-
-		log.Println("[RECEIVE]:Receive length:", num)
-
-		c.proto.PackOrder = packOrder + 1
-
-		fmt.Printf("[RECEIVE]: Pack order: %d \n", c.proto.PackOrder)
-
-	}()
 }
