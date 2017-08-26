@@ -82,14 +82,14 @@ func NewClient(conf *Conf, hand handler) (*Client, error) {
 		conf:   conf,
 		conn:   conn,
 		proto:  &protocol.Proto{},
-		handle: hand,
+		handle: &Provider{},
 		info:   &FileInfo{},
 	}
 
 	client.prepareBuffer()
 
 	if err = client.initFile(conf.FileName); err != nil {
-		fmt.Printf("[ERROR] initFile crash with error: %v \n", err)
+		client.handle.OnError(err)
 	}
 
 	return client, nil
@@ -134,8 +134,7 @@ func (c *Client) consult() error {
 
 	n, err := c.conn.Write(c.info.headPack)
 	if err != nil {
-		fmt.Printf("[ERROR] Write consult pack error:%v \n", err)
-		return err
+		c.handle.OnError(err)
 	}
 
 	fmt.Printf("[WRITE] write %d byte \n", n)
@@ -146,7 +145,7 @@ func (c *Client) consult() error {
 func (c *Client) send(pack []byte) error {
 	n, err := c.conn.Write(pack)
 	if err != nil {
-		return err
+		c.handle.OnError(err)
 	}
 
 	if n < len(pack) {
@@ -174,13 +173,13 @@ func (c *Client) receive(conn *net.TCPConn) {
 	go func() {
 		num, err := conn.Read(c.info.replyPack)
 		if err != nil {
-			fmt.Printf("[ERROR]:readFromUDP - read num %d byte error：%v \n", num, err)
-			return
+			c.handle.OnError(err)
 		}
 
 		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
 
 		if protocol.ReplyFinish == packOrder {
+			c.handle.OnClose()
 			log.Println("Pass file finish.")
 			return
 		}

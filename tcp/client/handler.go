@@ -29,9 +29,33 @@
 
 package client
 
+import (
+	"fmt"
+	"os"
+)
+
 type handler interface {
 	OnError(error)
-	OnClose() error
-	OnReceive(int) error
-	OnSend(int) error
+	OnClose()
+}
+
+// Provider provide service
+type Provider struct {
+	client *Client
+}
+
+// OnError handle error
+// warning: when call this function program will be ended
+func (ph *Provider) OnError(err error) {
+	fmt.Printf("[ERROR] client crash with error %v \n", err)
+	ph.client.info.file.Close()
+	ph.client.conn.Close()
+
+	os.Exit(1)
+}
+
+// OnClose handle when close client
+func (ph *Provider) OnClose() {
+	ph.client.info.file.Close()
+	ph.client.conn.Close()
 }
