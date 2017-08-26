@@ -134,34 +134,39 @@ func (c *Client) send(pack []byte) error {
 }
 
 func (c *Client) receive(conn *net.TCPConn) {
-		for {
-			_, err := conn.Read(c.info.replyPack)
-			if err != nil {
-				c.handle.OnError(err)
-			}
-
-			packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
-
-			if packOrder == protocol.ReplyError {
-				c.handle.OnError(errFromServer)
-			}
-
-			if packOrder == c.proto.PackOrder {
-				// resend last pack
-			}
-
-			if packOrder-c.proto.PackOrder > 1 {
-				c.handle.OnError(errPackOrder)
-			}
-
-			err = c.info.SendFile(c.conf.PackSize)
-			if err != nil {
-				c.handle.OnError(err)
-			}
-
-			c.proto.PackOrder = packOrder + 1
-
-			fmt.Printf("[RECEIVE]: Pack order: %d \n", c.proto.PackOrder)
-
+	for {
+		_, err := conn.Read(c.info.replyPack)
+		if err != nil {
+			c.handle.OnError(err)
 		}
+
+		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
+
+		if packOrder == protocol.ReplyError {
+			c.handle.OnError(errFromServer)
+		}
+
+		if packOrder == c.proto.PackOrder {
+			err = c.info.resend()
+			if err != nil {
+				c.handle.OnError(err)
+			}
+
+			continue
+		}
+
+		if packOrder-c.proto.PackOrder > 1 {
+			c.handle.OnError(errPackOrder)
+		}
+
+		err = c.info.SendFile(c.conf.PackSize)
+		if err != nil {
+			c.handle.OnError(err)
+		}
+
+		c.proto.PackOrder = packOrder + 1
+
+		fmt.Printf("[RECEIVE]: Pack order: %d \n", c.proto.PackOrder)
+
+	}
 }

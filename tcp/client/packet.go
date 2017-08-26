@@ -132,3 +132,9 @@ func (fi *FileInfo) SendFile(size int) error {
 
 	return nil
 }
+
+func (fi *FileInfo) resend() error {
+	_, err := fi.client.conn.Write(fi.filePack)
+
+	return err
+}
