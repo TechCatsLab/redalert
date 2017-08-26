@@ -24,90 +24,40 @@
 
 /*
  * Revision History:
- *     Initial: 2017/08/11        Sun Anxiang
+ *     Initial: 2017/08/26        Liu JiaChang
  */
 
 package server
 
 import (
+	"log"
 	"net"
-	"time"
-	"bytes"
-	"fmt"
 )
 
-type TcpServer struct {
+// Server tcp server
+type Server struct {
 	conf      *Conf
-	listener  *net.TCPListener
-	shutdown  chan struct{}
-	sender    chan *Msg
-	connCount int
+	totalConn int
+	CountChan chan bool
 }
 
-type Msg struct {
-	content bytes.Buffer
-	remote  net.Addr
-}
-
-func NewTcpServer(conf *Conf) *TcpServer {
-	return &TcpServer{
-		conf:     conf,
-		sender:   make(chan *Msg),
-		shutdown: make(chan struct{}),
-	}
-}
-
-func (server *TcpServer) Init() error {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", server.conf.Addr+server.conf.Port)
+// NewServer new TCP server
+func NewServer(conf *Conf) *Server {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", conf.Addr+":"+conf.Port)
 	if err != nil {
-		return err
+		log.Fatalln("[ERROR]:Can't resolve address:", err)
 	}
 
-	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
+	_, err = net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		return err
+		log.Fatalln("[ERROR]:Can't resolve address:", err)
 	}
 
-	server.listener = tcpListener
-
-	return nil
-}
-
-func (server *TcpServer) Start() {
-	defer func() {
-		server.listener.Close()
-	}()
-
-	for {
-		select {
-		case <-server.shutdown:
-			return
-		default:
-			conn, err := server.listener.AcceptTCP()
-			if err != nil {
-				continue
-			}
-
-			go NewClient(conn, server).Start()
-			fmt.Println("connection:", )
-
-			server.connCount++
-			go server.stopAcceptConn()
-		}
+	s := &Server{
+		conf:      conf,
+		totalConn: 0,
+		CountChan: make(chan bool),
 	}
-}
 
-func (server *TcpServer) Shutdown() {
-	server.shutdown <- struct{}{}
-}
-
-func (server *TcpServer) stopAcceptConn() {
-	if server.connCount == server.conf.ConnLimit {
-		server.listener.SetDeadline(time.Now())
-		close(server.shutdown)
-	}
-}
-
-func (server *TcpServer) Send(msg *Msg) {
-	server.sender <- msg
+	return s
 }

@@ -31,7 +31,7 @@ package server
 
 // Conf Tcp server configure
 type Conf struct {
-	Addr      string // Local Addr
-	Port      string // Local Port
-	ConnLimit int    // Connection Limit number
+	Addr    string // Local Addr
+	Port    string // Local Port
+	MaxConn int    // Connection Limit number
 }

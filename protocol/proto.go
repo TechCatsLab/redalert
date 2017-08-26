@@ -71,7 +71,7 @@ const (
 	RepeatHandle = 1<<32 - 3
 
 	// DefaultDir is default dir for save file
-	DefaultDir = ""
+	DefaultDir = "./"
 
 	FirstPacketSize = 1 << 9
 	MaxPacketSize   = 1 << 13

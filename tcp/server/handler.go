@@ -29,11 +29,7 @@
 
 package server
 
-import "net"
-
-// Handler represent operations by UDP service
+// Handler represent operations by TCP service
 type Handler interface {
-	OnError(error, *net.TCPAddr)
-	OnPacket() error
-	OnClose() error
+	OnConn() error
 }
