@@ -31,6 +31,7 @@ package client
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -60,6 +61,24 @@ var (
 	errFromServer        = errors.New("Got error from server")
 	errPackOrder         = errors.New("Pack order messed")
 )
+
+func (fi *FileInfo) initFile(name string) error {
+	file, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	fi.file = file
+	fi.fileName = fileInfo
+	fi.hash = md5.New()
+
+	return nil
+}
 
 // first pack which for consult
 func (fi *FileInfo) consult() error {

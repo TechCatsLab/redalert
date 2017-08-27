@@ -30,11 +30,9 @@
 package client
 
 import (
-	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"net"
-	"os"
 
 	"redalert/protocol"
 )
@@ -91,7 +89,7 @@ func NewClient(conf *Conf, hand handler) (*Client, error) {
 
 	client.prepareBuffer()
 
-	if err = client.initFile(conf.FileName); err != nil {
+	if err = client.info.initFile(conf.FileName); err != nil {
 		client.handle.OnError(err)
 	}
 
@@ -100,24 +98,6 @@ func NewClient(conf *Conf, hand handler) (*Client, error) {
 func (c *Client) prepareBuffer() {
 	c.conn.SetReadBuffer(bufferSize)
 	c.conn.SetWriteBuffer(bufferSize)
-}
-
-func (c *Client) initFile(name string) error {
-	file, err := os.Open(name)
-	if err != nil {
-		return err
-	}
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
-	c.info.file = file
-	c.info.fileName = fileInfo
-	c.info.hash = md5.New()
-
-	return nil
 }
 
 func (c *Client) send(pack []byte) error {
@@ -134,6 +114,10 @@ func (c *Client) send(pack []byte) error {
 }
 
 func (c *Client) receive(conn *net.TCPConn) {
+	if err := c.info.consult(); err != nil {
+		c.handle.OnError(err)
+	}
+
 	for {
 		_, err := conn.Read(c.info.replyPack)
 		if err != nil {
