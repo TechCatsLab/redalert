@@ -114,6 +114,13 @@ func (c *Client) send(pack []byte) error {
 }
 
 func (c *Client) receive(conn *net.TCPConn) {
+	go func() {
+		select {
+		case <-c.close:
+			c.handle.OnClose()
+		}
+	}()
+
 	if err := c.info.consult(); err != nil {
 		c.handle.OnError(err)
 	}
