@@ -19,14 +19,17 @@ import (
 
 	"github.com/spf13/cobra"
 
+	tcp "redalert/tcp/server"
 	"redalert/udp/server"
 )
 
 var (
+	protocol        string
 	serverAddress   string
 	serverPort      string
 	serverPackSize  int
 	serverCacheSize int
+	maxConn         int
 )
 
 // serverCmd represents the server command
@@ -40,21 +43,31 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		conf := server.Conf{
-			Address:    serverAddress,
-			Port:       serverPort,
-			PacketSize: serverPackSize,
-			CacheCount: serverCacheSize,
-		}
+		if protocol == "tcp" {
+			tcpConf := tcp.Conf{
+				Addr:    serverAddress,
+				Port:    serverPort,
+				MaxConn: maxConn,
+			}
 
-		h := server.Provider{}
+			tcp.StartServer(&tcpConf)
+		} else {
+			conf := server.Conf{
+				Address:    serverAddress,
+				Port:       serverPort,
+				PacketSize: serverPackSize,
+				CacheCount: serverCacheSize,
+			}
 
-		_, err := server.NewServer(&conf, &h)
-		if err != nil {
-			log.Print(err)
-			return
+			h := server.Provider{}
+
+			_, err := server.NewServer(&conf, &h)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+			select {}
 		}
-		select {}
 	},
 }
 
@@ -67,10 +80,12 @@ func init() {
 	// and all subcommands, e.g.:
 	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
 
+	serverCmd.Flags().StringVarP(&protocol, "protocol", "o", "udp", "select a proto to send file, udp or tcp.")
 	serverCmd.Flags().StringVarP(&serverAddress, "addr", "a", "127.0.0.1", "addr of server.")
 	serverCmd.Flags().StringVarP(&serverPort, "port", "p", "17120", "port of server.")
 	serverCmd.Flags().IntVarP(&serverPackSize, "pack", "P", 1024, "size of pack.")
 	serverCmd.Flags().IntVarP(&serverCacheSize, "cache", "c", 1024, "size of cache.")
+	serverCmd.Flags().IntVarP(&maxConn, "max", "M", 10, "TCP max connection.")
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")

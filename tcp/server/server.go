@@ -58,6 +58,8 @@ func StartServer(conf *Conf) {
 		log.Fatalln("[ERROR]:Can't resolve address:", err)
 	}
 
+	log.Printf("[server] start at %s", tcpAddr.String())
+
 	s := &Server{
 		conf:      conf,
 		totalConn: 0,
