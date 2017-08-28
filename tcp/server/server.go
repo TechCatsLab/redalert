@@ -30,6 +30,7 @@
 package server
 
 import (
+	"crypto/md5"
 	"encoding/binary"
 	"log"
 	"net"
@@ -101,9 +102,12 @@ func (s *Server) onConn(conn *net.TCPConn) {
 	}
 
 	session := Session{
-		Pack:  make([]byte, proto.PackSize),
-		file:  file,
-		proto: &proto,
+		Pack:      make([]byte, proto.PackSize),
+		Reply:     make([]byte, protocol.ReplySize),
+		file:      file,
+		proto:     &proto,
+		CountChan: s.CountChan,
+		hash:      md5.New(),
 	}
 
 	s.CountChan <- true
