@@ -51,56 +51,71 @@ type Session struct {
 
 // Start start write file
 func (s *Session) Start() {
-	go func() {
-		packOrder := uint32(1)
-		for {
-			_, err := s.conn.Read(s.Pack)
+
+	packOrder := uint32(1)
+	for {
+		_, err := s.conn.Read(s.Pack)
+		if err != nil {
+			log.Println("[ERROR]:Read connect error", err)
+
+			s.file.Close()
+			os.Remove(s.file.Name())
+			s.CountChan <- false
+			return
+		}
+
+		if s.Pack[0] == protocol.HeaderFileFinishType {
+			md5hash := s.hash.Sum(nil)
+			if string(md5hash) != string(s.Pack[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
+				s.file.Close()
+				os.Remove(s.file.Name())
+			}
+
+			log.Printf("[DEBUG]:Send file finish.hash %v", md5hash)
+
+			s.file.Close()
+			s.CountChan <- false
+			return
+		}
+
+		order := binary.LittleEndian.Uint32(s.Pack[protocol.PackOrderOffset:protocol.FixedHeaderSize])
+
+		if order != packOrder {
+			binary.LittleEndian.PutUint32(s.Reply, packOrder)
+			_, err := s.conn.Write(s.Reply)
 			if err != nil {
-				log.Println("[ERROR]:Read connect error", err)
+				log.Println("[ERROR]:Conn write error", err)
 
 				s.file.Close()
 				os.Remove(s.file.Name())
 				s.CountChan <- false
+
 				return
 			}
 
-			if s.Pack[0] == protocol.HeaderFileFinishType {
-				md5hash := s.hash.Sum(nil)
-				if string(md5hash) != string(s.Pack[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
-					s.file.Close()
-					os.Remove(s.file.Name())
-				}
-
-				s.file.Close()
-				s.CountChan <- false
-				return
-			}
-
-			order := binary.LittleEndian.Uint32(s.Pack[protocol.PackOrderOffset:protocol.FixedHeaderSize])
-
-			if order != packOrder {
-				binary.LittleEndian.PutUint32(s.Reply, packOrder)
-				_, err := s.conn.Write(s.Reply)
-				if err != nil {
-					log.Println("[ERROR]:Conn write error", err)
-
-					s.file.Close()
-					os.Remove(s.file.Name())
-					s.CountChan <- false
-
-					return
-				}
-
-				continue
-			}
-
-			availableSize := binary.LittleEndian.Uint16(s.Pack[protocol.PackSizeOffset:protocol.PackCountOffset])
-			realBody := s.Pack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+availableSize]
-
-			s.file.Write(realBody)
-			s.hash.Write(realBody)
-
-			packOrder++
+			continue
 		}
-	}()
+
+		availableSize := binary.LittleEndian.Uint16(s.Pack[protocol.PackSizeOffset:protocol.PackCountOffset])
+		log.Println("[DEBUG]:PackSize", availableSize)
+		realBody := s.Pack[protocol.FixedHeaderSize:availableSize]
+
+		s.file.Write(realBody)
+		s.hash.Write(realBody)
+
+		binary.LittleEndian.PutUint32(s.Reply, packOrder)
+		_, err = s.conn.Write(s.Reply)
+		if err != nil {
+			log.Println("[ERROR]:Conn write error", err)
+
+			s.file.Close()
+			os.Remove(s.file.Name())
+			s.CountChan <- false
+
+			return
+		}
+
+		log.Printf("[DEBUG]:Handler %d pack.", packOrder)
+		packOrder++
+	}
 }

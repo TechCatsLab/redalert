@@ -85,6 +85,12 @@ func StartServer(conf *Conf) {
 func (s *Server) onConn(conn *net.TCPConn) {
 	pack := make([]byte, protocol.FirstPacketSize)
 
+	_, err := conn.Read(pack)
+	if err != nil {
+		log.Println("[ERROR]:Conn read error", err)
+		return
+	}
+
 	proto := protocol.Proto{
 		HeaderType: pack[0],
 		HeaderSize: binary.LittleEndian.Uint16(pack[protocol.HeaderSizeOffset:protocol.FileSizeOffset]),
@@ -93,9 +99,9 @@ func (s *Server) onConn(conn *net.TCPConn) {
 		PackOrder:  binary.LittleEndian.Uint32(pack[protocol.PackOrderOffset:protocol.FixedHeaderSize]),
 	}
 
-	log.Println("[CONN]:Begin create file")
+	log.Println("[CONN]:Begin create file, Proto:", proto)
 
-	filename := string(pack[protocol.FileNameOffset:proto.HeaderSize])
+	filename := string(pack[protocol.FileNameOffset:proto.PackSize])
 
 	file, err := os.Create(protocol.DefaultDir + filename)
 	if err != nil {
@@ -107,13 +113,21 @@ func (s *Server) onConn(conn *net.TCPConn) {
 		Pack:      make([]byte, proto.PackSize),
 		Reply:     make([]byte, protocol.ReplySize),
 		file:      file,
+		conn:      conn,
 		proto:     &proto,
 		CountChan: s.CountChan,
 		hash:      md5.New(),
 	}
 
+	num, err := conn.Write(session.Reply)
+	if err != nil {
+		log.Printf("[ERROR]:Conn write %d word, error %v", num, err)
+
+		return
+	}
+
 	s.CountChan <- true
-	session.Start()
+	go session.Start()
 }
 
 func countConn(s *Server) {
