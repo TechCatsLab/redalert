@@ -85,8 +85,8 @@ func (fi *FileInfo) initFile(name string) error {
 func (fi *FileInfo) consult() error {
 	fi.client.proto.FileSize = uint64(fi.fileInfo.Size())
 	fmt.Println("file size", fi.client.proto.FileSize)
-	fi.client.proto.HeaderSize = uint16(fi.client.conf.PackSize)
-	fi.client.proto.PackSize = uint16(len(fi.fileInfo.Name()) + protocol.FixedHeaderSize)
+	fi.client.proto.PackSize = uint16(fi.client.conf.PackSize)
+	fi.client.proto.HeaderSize = uint16(len(fi.fileInfo.Name()) + protocol.FixedHeaderSize)
 	fi.headPack = make([]byte, protocol.FirstPacketSize)
 
 	err := fi.packHead(fi.headPack)
@@ -132,8 +132,10 @@ func (fi *FileInfo) SendFile(size int) error {
 		reader.Read(fi.filePack[protocol.FixedHeaderSize:])
 		fi.filePack[0] = protocol.HeaderFileFinishType
 
-		fi.client.conn.Write(fi.headPack)
-		fi.client.close <- struct{}{}
+		_, err =fi.client.conn.Write(fi.filePack)
+		if err != nil {
+			return err
+		}
 
 		return nil
 	}
@@ -142,13 +144,21 @@ func (fi *FileInfo) SendFile(size int) error {
 		return err
 	}
 
-	fi.client.proto.PackCount ++
-	fi.hash.Write(fi.filePack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+n])
+	_, err = fi.hash.Write(fi.filePack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+n])
+	if err != nil {
+		return err
+	}
 
+	fi.client.proto.PackOrder++
+
+	fi.filePack[0] = protocol.HeaderFileType
 	binary.LittleEndian.PutUint16(fi.filePack[protocol.PackSizeOffset:], uint16(n))
-	binary.LittleEndian.PutUint32(fi.filePack[protocol.PackOrderOffset:], fi.client.proto.PackCount)
+	binary.LittleEndian.PutUint32(fi.filePack[protocol.PackOrderOffset:], fi.client.proto.PackOrder)
 
+	fmt.Printf("[SendFile] send pack order is %v \n", fi.client.proto.PackOrder)
 	_, err = fi.client.conn.Write(fi.filePack)
+	fmt.Printf("[SendFile] send pack size is %v \n", len(fi.filePack))
+
 	if err != nil {
 		return err
 	}

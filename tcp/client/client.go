@@ -157,5 +157,10 @@ func (c *Client) receive(conn *net.TCPConn) {
 		if err != nil {
 			c.handle.OnError(err)
 		}
+
+
+		if c.info.filePack[0] == protocol.HeaderFileFinishType {
+			c.close <- struct{}{}
+		}
 	}
 }

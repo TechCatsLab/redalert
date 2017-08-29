@@ -58,4 +58,6 @@ func (ph *Provider) OnError(err error) {
 func (ph *Provider) OnClose() {
 	ph.client.info.file.Close()
 	ph.client.conn.Close()
+
+	os.Exit(0)
 }
