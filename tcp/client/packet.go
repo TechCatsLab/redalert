@@ -51,7 +51,7 @@ type FileInfo struct {
 	filePack   []byte
 	hash       hash.Hash
 	file       *os.File
-	fileName   os.FileInfo
+	fileInfo   os.FileInfo
 	fileOffset uint32
 }
 
@@ -68,13 +68,14 @@ func (fi *FileInfo) initFile(name string) error {
 		return err
 	}
 
-	fileInfo, err := file.Stat()
+	fileInfo, err := os.Stat(name)
 	if err != nil {
 		return err
 	}
 
+	fmt.Printf("file name is %v size is %v: \n", fileInfo.Name(), fileInfo.Size())
 	fi.file = file
-	fi.fileName = fileInfo
+	fi.fileInfo = fileInfo
 	fi.hash = md5.New()
 
 	return nil
@@ -82,9 +83,10 @@ func (fi *FileInfo) initFile(name string) error {
 
 // first pack which for consult
 func (fi *FileInfo) consult() error {
-	fi.client.proto.FileSize = uint64(fi.fileName.Size())
-	fi.client.proto.HeaderSize = protocol.HeaderSize
-	fi.client.proto.PackSize = protocol.FirstPacketSize
+	fi.client.proto.FileSize = uint64(fi.fileInfo.Size())
+	fmt.Println("file size", fi.client.proto.FileSize)
+	fi.client.proto.HeaderSize = uint16(fi.client.conf.PackSize)
+	fi.client.proto.PackSize = uint16(len(fi.fileInfo.Name()) + protocol.FixedHeaderSize)
 	fi.headPack = make([]byte, protocol.FirstPacketSize)
 
 	err := fi.packHead(fi.headPack)
@@ -93,7 +95,7 @@ func (fi *FileInfo) consult() error {
 	}
 
 	fi.headPack[0] = byte(protocol.HeaderRequestType)
-	nameReader := strings.NewReader(fi.fileName.Name())
+	nameReader := strings.NewReader(fi.fileInfo.Name())
 	nameReader.Read(fi.headPack[protocol.FixedHeaderSize:])
 
 	n, err := fi.client.conn.Write(fi.headPack)
@@ -140,9 +142,11 @@ func (fi *FileInfo) SendFile(size int) error {
 		return err
 	}
 
+	fi.client.proto.PackCount ++
 	fi.hash.Write(fi.filePack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+n])
 
 	binary.LittleEndian.PutUint16(fi.filePack[protocol.PackSizeOffset:], uint16(n))
+	binary.LittleEndian.PutUint32(fi.filePack[protocol.PackOrderOffset:], fi.client.proto.PackCount)
 
 	_, err = fi.client.conn.Write(fi.filePack)
 	if err != nil {

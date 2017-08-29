@@ -79,7 +79,6 @@ func NewClient(conf *Conf) (*Client, error) {
 		conf:   conf,
 		conn:   conn,
 		proto:  &protocol.Proto{},
-		handle: &Provider{},
 		close:  make(chan struct{}),
 		info: &FileInfo{
 			filePack:  make([]byte, conf.PackSize),
@@ -87,6 +86,10 @@ func NewClient(conf *Conf) (*Client, error) {
 		},
 	}
 
+	client.info.client = client
+	client.handle = &Provider{
+		client:client,
+	}
 	client.prepareBuffer()
 
 	if err = client.info.initFile(conf.FileName); err != nil {
@@ -137,33 +140,22 @@ func (c *Client) receive(conn *net.TCPConn) {
 			c.handle.OnError(err)
 		}
 
+
 		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
+		fmt.Printf("[RECEIVE] pack order %d \n", packOrder)
 
 		if packOrder == protocol.ReplyError {
 			c.handle.OnError(errFromServer)
 		}
 
-		if packOrder == c.proto.PackOrder {
-			err = c.info.resend()
-			if err != nil {
-				c.handle.OnError(err)
-			}
-
-			continue
-		}
-
-		if packOrder-c.proto.PackOrder > 1 {
+		if packOrder != c.proto.PackOrder {
 			c.handle.OnError(errPackOrder)
 		}
+
 
 		err = c.info.SendFile(c.conf.PackSize)
 		if err != nil {
 			c.handle.OnError(err)
 		}
-
-		c.proto.PackOrder = packOrder + 1
-
-		fmt.Printf("[RECEIVE]: Pack order: %d \n", c.proto.PackOrder)
-
 	}
 }
