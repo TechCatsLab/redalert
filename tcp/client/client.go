@@ -62,7 +62,7 @@ type (
 )
 
 // NewClient creat a new tcp client
-func NewClient(conf *Conf, hand handler) (*Client, error) {
+func NewClient(conf *Conf) (*Client, error) {
 	addr, err := net.ResolveTCPAddr("tcp", conf.Address+":"+conf.Port)
 	if err != nil {
 		fmt.Printf("[ERROR] Can't resolve tcp address with error %v \n", err)
@@ -95,6 +95,12 @@ func NewClient(conf *Conf, hand handler) (*Client, error) {
 
 	return client, nil
 }
+
+// Start start sending
+func (c *Client) Start() {
+	c.receive(c.conn)
+}
+
 func (c *Client) prepareBuffer() {
 	c.conn.SetReadBuffer(bufferSize)
 	c.conn.SetWriteBuffer(bufferSize)

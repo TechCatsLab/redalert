@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"redalert/udp/client"
+	tcp "redalert/tcp/client"
 
 	"github.com/spf13/cobra"
 )
@@ -36,6 +37,23 @@ var sendCmd = &cobra.Command{
 		if len(args) < 1 {
 			cmd.Help()
 			return
+		}
+
+		if protocol == "tcp" {
+			conf := &tcp.Conf{
+				Address:    host,
+				Port:       port,
+				PackSize:   packSize,
+				FileName:   args[0],
+			}
+
+			cli, err := tcp.NewClient(conf)
+			if err != nil {
+				fmt.Println("Connection failed with error:", err)
+				return
+			}
+
+			cli.Start()
 		}
 
 		conf := &client.Conf{
@@ -63,6 +81,7 @@ func init() {
 	RootCmd.AddCommand(sendCmd)
 
 	// Here you will define your flags and configuration settings.
+	sendCmd.Flags().StringVarP(&protocol, "proto", "o", "udp", "send method")
 	sendCmd.Flags().StringVarP(&host, "host", "H", "127.0.0.1", "Target host")
 	sendCmd.Flags().StringVarP(&port, "port", "p", "17120", "Target port")
 	sendCmd.Flags().IntVarP(&packSize, "packetSize", "s", 1024, "Every packet size")
