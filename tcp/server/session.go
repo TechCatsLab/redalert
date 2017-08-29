@@ -51,10 +51,9 @@ type Session struct {
 
 // Start start write file
 func (s *Session) Start() {
-
 	packOrder := uint32(1)
 	for {
-		_, err := s.conn.Read(s.Pack)
+		num, err := s.conn.Read(s.Pack)
 		if err != nil {
 			log.Println("[ERROR]:Read connect error", err)
 
@@ -64,9 +63,13 @@ func (s *Session) Start() {
 			return
 		}
 
+		log.Printf("[DEBUG]:Read %d word.", num)
+
 		if s.Pack[0] == protocol.HeaderFileFinishType {
 			md5hash := s.hash.Sum(nil)
 			if string(md5hash) != string(s.Pack[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
+				log.Println("[DEBUG]:MD5 error.")
+
 				s.file.Close()
 				os.Remove(s.file.Name())
 			}
@@ -79,6 +82,8 @@ func (s *Session) Start() {
 		}
 
 		order := binary.LittleEndian.Uint32(s.Pack[protocol.PackOrderOffset:protocol.FixedHeaderSize])
+
+		log.Println("[DEBUG]:Before judge order", order)
 
 		if order != packOrder {
 			binary.LittleEndian.PutUint32(s.Reply, packOrder)
@@ -93,12 +98,13 @@ func (s *Session) Start() {
 				return
 			}
 
+			log.Println("[DEBUG]:Resend order", order)
 			continue
 		}
 
 		availableSize := binary.LittleEndian.Uint16(s.Pack[protocol.PackSizeOffset:protocol.PackCountOffset])
-		log.Println("[DEBUG]:PackSize", availableSize)
-		realBody := s.Pack[protocol.FixedHeaderSize:availableSize]
+		log.Printf("[DEBUG]:PackSize %d, Pack length %d", availableSize, len(s.Pack))
+		realBody := s.Pack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+availableSize]
 
 		s.file.Write(realBody)
 		s.hash.Write(realBody)

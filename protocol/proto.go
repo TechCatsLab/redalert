@@ -80,9 +80,9 @@ const (
 // Proto - 传输协议结构
 type Proto struct {
 	HeaderType uint8  // 包类型 （1.商量协议类型 2.传文件类型）
-	HeaderSize uint16 // 包头大小
+	HeaderSize uint16 // 第一包整个包大小，以后包头大小
 	FileSize   uint64 // 要传输的文件大小
-	PackSize   uint16 // 包的大小
+	PackSize   uint16 // 第一包传以后每个包的大小
 	PackCount  uint32 // 总包量
 	PackOrder  uint32 // 包序号
 }

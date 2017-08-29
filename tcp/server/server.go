@@ -101,13 +101,15 @@ func (s *Server) onConn(conn *net.TCPConn) {
 
 	log.Println("[CONN]:Begin create file, Proto:", proto)
 
-	filename := string(pack[protocol.FileNameOffset:proto.PackSize])
+	filename := string(pack[protocol.FileNameOffset:proto.HeaderSize])
 
 	file, err := os.Create(protocol.DefaultDir + filename)
 	if err != nil {
 		log.Println("[ERROR]:Create file error", err)
 		return
 	}
+
+	log.Printf("[DEBUG]:File name %s", filename)
 
 	session := Session{
 		Pack:      make([]byte, proto.PackSize),
