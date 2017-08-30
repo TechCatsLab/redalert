@@ -175,9 +175,7 @@ func (h *DefaultHandler) writeHead(b []byte) error {
 	}
 
 	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], h.proto.HeaderSize)
-	binary.LittleEndian.PutUint64(b[protocol.FileSizeOffset:], h.proto.FileSize)
 	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], h.proto.PackSize)
-	binary.LittleEndian.PutUint32(b[protocol.PackCountOffset:], h.proto.PackCount)
 	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], h.proto.PackOrder)
 
 	return nil

@@ -60,7 +60,7 @@ type Client struct {
 	sendChan chan struct{}
 }
 
-// NewClient 创建一个 UDP 客户端
+// NewClient Create a UDP client
 func NewClient(conf *Conf) (*Client, error) {
 	var packCount uint32
 
@@ -96,12 +96,6 @@ func NewClient(conf *Conf) (*Client, error) {
 		conf.PacketSize = protocol.MaxPacketSize
 	}
 
-	if uint64(fileInfo.Size())%uint64(conf.PacketSize) != 0 {
-		packCount = uint32(fileInfo.Size()/int64(conf.PacketSize)) + 1
-	} else {
-		packCount = uint32(fileInfo.Size() / int64(conf.PacketSize))
-	}
-
 	client := Client{
 		conf:     conf,
 		sendChan: make(chan struct{}),
@@ -109,9 +103,7 @@ func NewClient(conf *Conf) (*Client, error) {
 
 	client.proto = &protocol.Proto{
 		HeaderSize: uint16(protocol.FixedHeaderSize + len(fileInfo.Name())),
-		FileSize:   uint64(fileInfo.Size()),
 		PackSize:   uint16(client.conf.PacketSize),
-		PackCount:  packCount,
 		PackOrder:  0,
 	}
 
