@@ -24,12 +24,29 @@
 
 /*
  * Revision History:
- *     Initial: 2017/08/10        Liu JiaChang
+ *     Initial: 2017/08/30        Liu JiaChang
  */
 
 package server
 
-// Handler represent operations by TCP service
-type Handler interface {
-	OnConn() error
+import (
+	"bytes"
+	"encoding/binary"
+
+	"redalert/protocol"
+)
+
+// Packet a packet
+type Packet struct {
+	Body []byte
+	Buf  *bytes.Buffer
+}
+
+// Unmarshal bytes to proto
+func (p *Packet) Unmarshal(proto *protocol.Proto) {
+	p.Buf.Reset()
+	binary.Read(p.Buf, binary.BigEndian, proto.HeaderType)
+	binary.Read(p.Buf, binary.BigEndian, proto.HeaderSize)
+	binary.Read(p.Buf, binary.BigEndian, proto.PackOrder)
+	binary.Read(p.Buf, binary.BigEndian, proto.PackSize)
 }

@@ -44,10 +44,11 @@ type Server struct {
 	conf      *Conf
 	totalConn int
 	CountChan chan bool
+	listener  *net.TCPListener
 }
 
-// StartServer start a new TCP server
-func StartServer(conf *Conf) {
+// NewServer start a new TCP server
+func NewServer(conf *Conf) *Server {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", conf.Addr+":"+conf.Port)
 	if err != nil {
 		log.Fatalln("[ERROR]:Can't resolve address:", err)
@@ -64,15 +65,21 @@ func StartServer(conf *Conf) {
 		conf:      conf,
 		totalConn: 0,
 		CountChan: make(chan bool),
+		listener:  listener,
 	}
 
+	return s
+}
+
+// Start TCP server
+func (s *Server) Start() {
 	countConn(s)
 
 	for {
 		if s.totalConn >= s.conf.MaxConn {
 			time.Sleep(time.Second * 2)
 		} else {
-			conn, err := listener.AcceptTCP()
+			conn, err := s.listener.AcceptTCP()
 			if err != nil {
 				log.Println("[ERROR]:listen error", err)
 			} else {
@@ -95,7 +102,6 @@ func (s *Server) onConn(conn *net.TCPConn) {
 		HeaderType: pack[0],
 		HeaderSize: binary.LittleEndian.Uint16(pack[protocol.HeaderSizeOffset:protocol.FileSizeOffset]),
 		PackSize:   binary.LittleEndian.Uint16(pack[protocol.PackSizeOffset:protocol.PackCountOffset]),
-		PackCount:  binary.LittleEndian.Uint32(pack[protocol.PackCountOffset:protocol.PackOrderOffset]),
 		PackOrder:  binary.LittleEndian.Uint32(pack[protocol.PackOrderOffset:protocol.FixedHeaderSize]),
 	}
 

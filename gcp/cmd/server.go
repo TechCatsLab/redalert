@@ -65,7 +65,8 @@ to quickly create a Cobra application.`,
 				MaxConn: maxConn,
 			}
 
-			tcp.StartServer(&tcpConf)
+			server := tcp.NewServer(tcpConf)
+			server.Start()
 		} else {
 			conf := server.Conf{
 				Address:    serverAddress,
