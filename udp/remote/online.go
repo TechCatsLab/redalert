@@ -43,7 +43,6 @@ import (
 var (
 	Service    *remoteAddrTable
 	errTimeOut = errors.New("receive time out")
-	TimeOut    = make(chan struct{})
 )
 
 // Remote storage remote client info
@@ -67,7 +66,7 @@ func init() {
 }
 
 // OnStartTransfer storage Remote for new client
-func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote *net.UDPAddr) {
+func (r *remoteAddrTable) OnStartTransfer(filename string, file *os.File, remote *net.UDPAddr) {
 	key := remote.IP.String() + ":" + string(remote.Port)
 	rem := Remote{
 		FileName: filename,
@@ -79,8 +78,7 @@ func (r *remoteAddrTable) OnStartTransfor(filename string, file *os.File, remote
 	}
 
 	r.remote[key] = &rem
-
-	fmt.Printf("[OnStartTransfor] create a table %v \n", remote)
+	fmt.Printf("[OnStartTransfer] create a table %v \n", remote)
 }
 
 // GetRemote return *Remote and true if exists
@@ -124,7 +122,6 @@ func (r *remoteAddrTable) Close(remote *net.UDPAddr, err error) {
 	rem.File.Close()
 	delete(r.remote, key)
 	rem.Timer.Stop()
-	TimeOut <- struct{}{}
 	if err != nil {
 		os.Remove(rem.FileName)
 	}

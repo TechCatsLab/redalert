@@ -120,22 +120,22 @@ func (fi *FileInfo) packHead(b []byte) error {
 // SendFile send file pack by size
 func (fi *FileInfo) SendFile(size int) error {
 	n, err := fi.file.Read(fi.filePack[protocol.FixedHeaderSize:])
-	if err == io.EOF {
-		hashResult := fi.hash.Sum(nil)
+	if err != nil {
+		if err == io.EOF {
+			hashResult := fi.hash.Sum(nil)
 
-		reader := bytes.NewReader(hashResult)
-		reader.Read(fi.filePack[protocol.FixedHeaderSize:])
-		fi.filePack[0] = protocol.HeaderFileFinishType
+			reader := bytes.NewReader(hashResult)
+			reader.Read(fi.filePack[protocol.FixedHeaderSize:])
+			fi.filePack[0] = protocol.HeaderFileFinishType
 
-		_, err = fi.client.conn.Write(fi.filePack)
-		if err != nil {
-			return err
+			_, err = fi.client.conn.Write(fi.filePack)
+			if err != nil {
+				return err
+			}
+
+			return nil
 		}
 
-		return nil
-	}
-
-	if err != nil {
 		return err
 	}
 
@@ -152,8 +152,6 @@ func (fi *FileInfo) SendFile(size int) error {
 
 	fmt.Printf("[SendFile] send pack order is %v \n", fi.client.proto.PackOrder)
 	_, err = fi.client.conn.Write(fi.filePack)
-	fmt.Printf("[SendFile] send pack size is %v \n", len(fi.filePack))
-
 	if err != nil {
 		return err
 	}

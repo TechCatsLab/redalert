@@ -35,7 +35,6 @@ import (
 	"net"
 
 	"redalert/protocol"
-	"redalert/udp/remote"
 )
 
 const (
@@ -125,10 +124,6 @@ func (c *Service) handleClient() {
 			if err != nil {
 				c.handler.OnError(err, nil)
 			}
-		case <-remote.TimeOut:
-			pack.Body = pack.Body[:protocol.FirstPacketSize]
-			pack.proto.PackOrder = 0
-			pack.proto.PackSize = 0
 		}
 	}
 }

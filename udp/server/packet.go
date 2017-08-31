@@ -133,7 +133,7 @@ func (p *Packet) handleRequest(s *Service) error {
 
 	p.Body = make([]byte, packSize)
 	p.Body[0] = protocol.HeaderRequestType
-	remote.Service.OnStartTransfor(filename, file, p.Remote)
+	remote.Service.OnStartTransfer(filename, file, p.Remote)
 
 	return nil
 }

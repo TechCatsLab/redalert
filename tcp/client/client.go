@@ -61,7 +61,7 @@ type (
 	}
 )
 
-// NewClient creat a new tcp client
+// NewClient create a new tcp client
 func NewClient(conf *Conf) (*Client, error) {
 	addr, err := net.ResolveTCPAddr("tcp", conf.Address+":"+conf.Port)
 	if err != nil {
