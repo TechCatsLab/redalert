@@ -30,8 +30,6 @@
 package cmd
 
 import (
-	"log"
-
 	"github.com/spf13/cobra"
 
 	tcp "redalert/tcp/server"
@@ -65,7 +63,7 @@ to quickly create a Cobra application.`,
 				MaxConn: maxConn,
 			}
 
-			server := tcp.NewServer(tcpConf)
+			server := tcp.NewServer(&tcpConf)
 			server.Start()
 		} else {
 			conf := server.Conf{
@@ -75,14 +73,8 @@ to quickly create a Cobra application.`,
 				CacheCount: serverCacheSize,
 			}
 
-			h := server.Provider{}
-
-			_, err := server.NewServer(&conf, &h)
-			if err != nil {
-				log.Print(err)
-				return
-			}
-			select {}
+			server := server.NewServer(&conf)
+			server.HandleClient()
 		}
 	},
 }

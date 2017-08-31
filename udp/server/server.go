@@ -33,6 +33,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"log"
 
 	"redalert/protocol"
 )
@@ -64,7 +65,7 @@ var pack = NewPacket(protocol.FirstPacketSize)
 var reply = make([]byte, protocol.ReplySize)
 
 // NewServer start a new UDP service
-func NewServer(conf *Conf, handler Handler) (*Service, error) {
+func NewServer(conf *Conf) *Service {
 	var udpPort string
 
 	if conf.Port == "" {
@@ -75,31 +76,30 @@ func NewServer(conf *Conf, handler Handler) (*Service, error) {
 
 	addr, err := net.ResolveUDPAddr("udp", udpPort)
 	if err != nil {
-		fmt.Println("Can't resolve addr:", err.Error())
-		return nil, err
+		log.Fatalln("Can't resolve addr:", err.Error())
 	}
 
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		fmt.Println("listen error:", err.Error())
-		return nil, err
+		log.Fatalln("listen error:", err.Error())
 	}
 
 	fmt.Printf("[server] start at %v \n", conn.LocalAddr())
 
-	server := &Service{
+	hand := Provider{}
+	service := &Service{
 		conf:    conf,
 		conn:    conn,
-		handler: handler,
+		handler: &hand,
 		buffer:  make([]*Packet, conf.PacketSize),
 		sender:  make(chan *Packet, 256),
 		close:   make(chan struct{}),
 	}
-	server.prepare()
+	service.prepare()
 
-	go server.handleClient()
+	go service.HandleClient()
 
-	return server, nil
+	return service
 }
 
 // set buffer size
@@ -109,7 +109,7 @@ func (c *Service) prepare() {
 }
 
 // handle event of file transfer
-func (c *Service) handleClient() {
+func (c *Service) HandleClient() {
 	go c.receive()
 
 	for {
