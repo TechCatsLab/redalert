@@ -88,11 +88,7 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 // Read read packet and handle on the base of type
 func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	var err error
-	// size, remote, err := s.conn.ReadFromUDP(p.Body)
 	fmt.Printf("[Read] read bytes from %v \n", remote)
-	// if err != nil {
-	// return err
-	// }
 
 	p.Remote = remote
 	p.Size = size
@@ -124,7 +120,6 @@ func (p *Packet) handleRequest(s *Service) error {
 	packSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
 	filename := string(p.Body[protocol.FileNameOffset:headerSize])
 
-	fmt.Printf("[handleRequest] header size is %d and packet size is %d \n", headerSize, packSize)
 	fmt.Printf("file name is %s \n", filename)
 
 	if _, ok := remote.Service.GetRemote(p.Remote); ok {
@@ -157,7 +152,6 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	}
 
 	fmt.Printf("[ORDER] is %d \n", order)
-	fmt.Printf("[ORDER] in map is %d \n", rem.PackCount)
 
 	if order == rem.PackCount {
 		fmt.Printf("[Repeat packet] %d \n", order)
@@ -191,7 +185,6 @@ func (p *Packet) handleFilePacket(s *Service) error {
 func (p *Packet) handleFileFinishPacket(s *Service) error {
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
-		fmt.Printf("query from map-> file name is %v \n", rem)
 		return ErrNotExists
 	}
 

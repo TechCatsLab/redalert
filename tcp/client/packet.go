@@ -57,7 +57,6 @@ type FileInfo struct {
 
 var (
 	errInvalidHeaderSize = errors.New("Header size out of range")
-	errWriteIncomplete   = errors.New("Write to tcp not complate")
 	errFromServer        = errors.New("Got error from server")
 	errPackOrder         = errors.New("Pack order messed")
 )
