@@ -76,10 +76,10 @@ func NewClient(conf *Conf) (*Client, error) {
 	}
 
 	client := &Client{
-		conf:   conf,
-		conn:   conn,
-		proto:  &protocol.Proto{},
-		close:  make(chan struct{}),
+		conf:  conf,
+		conn:  conn,
+		proto: &protocol.Proto{},
+		close: make(chan struct{}),
 		info: &FileInfo{
 			filePack:  make([]byte, conf.PackSize),
 			replyPack: make([]byte, protocol.ReplySize),
@@ -88,7 +88,7 @@ func NewClient(conf *Conf) (*Client, error) {
 
 	client.info.client = client
 	client.handle = &Provider{
-		client:client,
+		client: client,
 	}
 	client.prepareBuffer()
 
@@ -109,19 +109,6 @@ func (c *Client) prepareBuffer() {
 	c.conn.SetWriteBuffer(bufferSize)
 }
 
-func (c *Client) send(pack []byte) error {
-	n, err := c.conn.Write(pack)
-	if err != nil {
-		c.handle.OnError(err)
-	}
-
-	if n < len(pack) {
-		return errWriteIncomplete
-	}
-
-	return nil
-}
-
 func (c *Client) receive(conn *net.TCPConn) {
 	go func() {
 		select {
@@ -140,7 +127,6 @@ func (c *Client) receive(conn *net.TCPConn) {
 			c.handle.OnError(err)
 		}
 
-
 		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
 		fmt.Printf("[RECEIVE] pack order %d \n", packOrder)
 
@@ -152,12 +138,10 @@ func (c *Client) receive(conn *net.TCPConn) {
 			c.handle.OnError(errPackOrder)
 		}
 
-
 		err = c.info.SendFile(c.conf.PackSize)
 		if err != nil {
 			c.handle.OnError(err)
 		}
-
 
 		if c.info.filePack[0] == protocol.HeaderFileFinishType {
 			c.close <- struct{}{}

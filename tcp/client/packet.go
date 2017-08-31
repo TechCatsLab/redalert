@@ -83,8 +83,6 @@ func (fi *FileInfo) initFile(name string) error {
 
 // first pack which for consult
 func (fi *FileInfo) consult() error {
-	fi.client.proto.FileSize = uint64(fi.fileInfo.Size())
-	fmt.Println("file size", fi.client.proto.FileSize)
 	fi.client.proto.PackSize = uint16(fi.client.conf.PackSize)
 	fi.client.proto.HeaderSize = uint16(len(fi.fileInfo.Name()) + protocol.FixedHeaderSize)
 	fi.headPack = make([]byte, protocol.FirstPacketSize)
@@ -114,9 +112,7 @@ func (fi *FileInfo) packHead(b []byte) error {
 	}
 
 	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], fi.client.proto.HeaderSize)
-	binary.LittleEndian.PutUint64(b[protocol.FileSizeOffset:], fi.client.proto.FileSize)
 	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], fi.client.proto.PackSize)
-	binary.LittleEndian.PutUint32(b[protocol.PackCountOffset:], fi.client.proto.PackCount)
 	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], fi.client.proto.PackOrder)
 
 	return nil
@@ -132,7 +128,7 @@ func (fi *FileInfo) SendFile(size int) error {
 		reader.Read(fi.filePack[protocol.FixedHeaderSize:])
 		fi.filePack[0] = protocol.HeaderFileFinishType
 
-		_, err =fi.client.conn.Write(fi.filePack)
+		_, err = fi.client.conn.Write(fi.filePack)
 		if err != nil {
 			return err
 		}
@@ -164,10 +160,4 @@ func (fi *FileInfo) SendFile(size int) error {
 	}
 
 	return nil
-}
-
-func (fi *FileInfo) resend() error {
-	_, err := fi.client.conn.Write(fi.filePack)
-
-	return err
 }
