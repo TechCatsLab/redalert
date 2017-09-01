@@ -35,6 +35,8 @@ import (
 	"net"
 
 	"redalert/protocol"
+	"log"
+	"github.com/slimsag/godocmd/testdata"
 )
 
 const (
@@ -62,17 +64,17 @@ type (
 )
 
 // NewClient create a new tcp client
-func NewClient(conf *Conf) (*Client, error) {
+func NewClient(conf *Conf) *Client {
 	addr, err := net.ResolveTCPAddr("tcp", conf.Address+":"+conf.Port)
 	if err != nil {
-		fmt.Printf("[ERROR] Can't resolve tcp address with error %v \n", err)
-		return nil, err
+		log.Fatalf("[ERROR] Can't resolve tcp address with error %v \n", err)
+		return nil
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		fmt.Printf("[ERROR] Dial crash with error: %v \n", err)
-		return nil, err
+		log.Fatalf("[ERROR] Dial crash with error: %v \n", err)
+		return nil
 	}
 
 	client := &Client{
@@ -96,7 +98,7 @@ func NewClient(conf *Conf) (*Client, error) {
 		client.handle.OnError(err)
 	}
 
-	return client, nil
+	return client
 }
 
 // Start start sending

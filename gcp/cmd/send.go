@@ -62,12 +62,7 @@ var sendCmd = &cobra.Command{
 				FileName: args[0],
 			}
 
-			cli, err := tcp.NewClient(conf)
-			if err != nil {
-				fmt.Println("Connection failed with error:", err)
-				return
-			}
-
+			cli := tcp.NewClient(conf)
 			cli.Start()
 		}
 

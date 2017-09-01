@@ -82,19 +82,10 @@ to quickly create a Cobra application.`,
 func init() {
 	RootCmd.AddCommand(serverCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
-
 	serverCmd.Flags().StringVarP(&protocol, "protocol", "o", "udp", "select a proto to send file, udp or tcp.")
 	serverCmd.Flags().StringVarP(&serverAddress, "addr", "a", "127.0.0.1", "addr of server.")
 	serverCmd.Flags().StringVarP(&serverPort, "port", "p", "17120", "port of server.")
 	serverCmd.Flags().IntVarP(&serverPackSize, "pack", "P", 1024, "size of pack.")
 	serverCmd.Flags().IntVarP(&serverCacheSize, "cache", "c", 1024, "size of cache.")
 	serverCmd.Flags().IntVarP(&maxConn, "max", "M", 10, "TCP max connection.")
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
