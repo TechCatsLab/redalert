@@ -30,8 +30,8 @@
 package server
 
 import (
+	"bytes"
 	"crypto/md5"
-	"encoding/binary"
 	"log"
 	"net"
 	"os"
@@ -90,24 +90,25 @@ func (s *Server) Start() {
 }
 
 func (s *Server) onConn(conn *net.TCPConn) {
-	pack := make([]byte, protocol.FirstPacketSize)
+	firstDecode := protocol.Encode{
+		Body: make([]byte, protocol.FirstPacketSize),
+	}
 
-	_, err := conn.Read(pack)
+	firstDecode.Buffer = bytes.NewBuffer(firstDecode.Body)
+
+	_, err := conn.Read(firstDecode.Body)
 	if err != nil {
 		log.Println("[ERROR]:Conn read error", err)
 		return
 	}
 
-	proto := protocol.Proto{
-		HeaderType: pack[0],
-		HeaderSize: binary.LittleEndian.Uint16(pack[protocol.HeaderSizeOffset:protocol.FileSizeOffset]),
-		PackSize:   binary.LittleEndian.Uint16(pack[protocol.PackSizeOffset:protocol.PackCountOffset]),
-		PackOrder:  binary.LittleEndian.Uint32(pack[protocol.PackOrderOffset:protocol.FixedHeaderSize]),
-	}
+	proto := protocol.Proto{}
+
+	firstDecode.Unmarshal(&proto)
 
 	log.Println("[CONN]:Begin create file, Proto:", proto)
 
-	filename := string(pack[protocol.FileNameOffset:proto.HeaderSize])
+	filename := string(firstDecode.Body[protocol.FileNameOffset:proto.HeaderSize])
 
 	file, err := os.Create(protocol.DefaultDir + filename)
 	if err != nil {
@@ -117,8 +118,14 @@ func (s *Server) onConn(conn *net.TCPConn) {
 
 	log.Printf("[DEBUG]:File name %s", filename)
 
+	decode := protocol.Encode{
+		Body: make([]byte, protocol.PackSize),
+	}
+
+	decode.Buffer = bytes.NewBuffer(decode.Body)
+
 	session := Session{
-		Pack:      make([]byte, proto.PackSize),
+		Pack:      &decode,
 		Reply:     make([]byte, protocol.ReplySize),
 		file:      file,
 		conn:      conn,

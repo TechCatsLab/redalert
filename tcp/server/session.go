@@ -40,7 +40,7 @@ import (
 
 // Session a connection
 type Session struct {
-	Pack      []byte
+	Pack      *protocol.Encode
 	Reply     []byte
 	file      *os.File
 	conn      net.Conn
@@ -53,7 +53,7 @@ type Session struct {
 func (s *Session) Start() {
 	packOrder := uint32(1)
 	for {
-		num, err := s.conn.Read(s.Pack)
+		num, err := s.conn.Read(s.Pack.Body)
 		if err != nil {
 			log.Println("[ERROR]:Read connect error", err)
 
@@ -65,9 +65,11 @@ func (s *Session) Start() {
 
 		log.Printf("[DEBUG]:Read %d word.", num)
 
-		if s.Pack[0] == protocol.HeaderFileFinishType {
+		s.Pack.Unmarshal(s.proto)
+
+		if s.Pack.Body[0] == protocol.HeaderFileFinishType {
 			md5hash := s.hash.Sum(nil)
-			if string(md5hash) != string(s.Pack[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
+			if string(md5hash) != string(s.Pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
 				log.Println("[DEBUG]:MD5 error.")
 
 				s.file.Close()
@@ -81,11 +83,9 @@ func (s *Session) Start() {
 			return
 		}
 
-		order := binary.LittleEndian.Uint32(s.Pack[protocol.PackOrderOffset:protocol.FixedHeaderSize])
+		log.Println("[DEBUG]:Before judge order", s.proto.PackOrder)
 
-		log.Println("[DEBUG]:Before judge order", order)
-
-		if order != packOrder {
+		if s.proto.PackOrder != packOrder {
 			binary.LittleEndian.PutUint32(s.Reply, packOrder)
 			_, err := s.conn.Write(s.Reply)
 			if err != nil {
@@ -98,13 +98,12 @@ func (s *Session) Start() {
 				return
 			}
 
-			log.Println("[DEBUG]:Resend order", order)
+			log.Println("[DEBUG]:Resend order", s.proto.PackOrder)
 			continue
 		}
 
-		availableSize := binary.LittleEndian.Uint16(s.Pack[protocol.PackSizeOffset:protocol.PackCountOffset])
-		log.Printf("[DEBUG]:PackSize %d, Pack length %d", availableSize, len(s.Pack))
-		realBody := s.Pack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+availableSize]
+		log.Printf("[DEBUG]:PackSize %d, Pack length %d", s.proto.PackSize, len(s.Pack.Body))
+		realBody := s.Pack.Body[protocol.FixedHeaderSize:s.proto.PackSize]
 
 		s.file.Write(realBody)
 		s.hash.Write(realBody)
