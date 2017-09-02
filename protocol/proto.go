@@ -48,9 +48,9 @@ const (
 	// HeaderTypeOffset - Offset
 	HeaderTypeOffset = 0
 	HeaderSizeOffset = HeaderTypeOffset + HeaderTypeSize
-	FileSizeOffset   = HeaderSizeOffset + HeaderSize
-	PackCountOffset  = FileSizeOffset + PackSize
-	FileNameOffset   = PackCountOffset + PackOrderSize
+	PackSizeOffset   = HeaderSizeOffset + HeaderSize
+	PackOrderOffset  = PackSizeOffset + PackSize
+	FileNameOffset   = PackOrderOffset + PackOrderSize
 
 	// DefaultUDPPort - default port
 	DefaultUDPPort = "17120"
