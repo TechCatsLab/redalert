@@ -30,6 +30,7 @@
 package client
 
 import (
+	"bytes"
 	"crypto/md5"
 	"errors"
 	"io"
@@ -62,8 +63,6 @@ type Client struct {
 
 // NewClient Create a UDP client
 func NewClient(conf *Conf) (*Client, error) {
-	var packCount uint32
-
 	addr, err := net.ResolveUDPAddr("udp", conf.RemoteAddress+":"+conf.RemotePort)
 	if err != nil {
 		log.Fatalln("[ERROR]:Can't resolve address:", err)
@@ -102,17 +101,24 @@ func NewClient(conf *Conf) (*Client, error) {
 	}
 
 	client.proto = &protocol.Proto{
+		HeaderType: protocol.HeaderRequestType,
 		HeaderSize: uint16(protocol.FixedHeaderSize + len(fileInfo.Name())),
 		PackSize:   uint16(client.conf.PacketSize),
 		PackOrder:  0,
 	}
+
+	decode := protocol.Encode{
+		Body: make([]byte, conf.PacketSize),
+	}
+
+	decode.Buffer = bytes.NewBuffer(decode.Body)
 
 	handler := &DefaultHandler{
 		conn:      conn,
 		proto:     client.proto,
 		hash:      md5.New(),
 		replyPack: make([]byte, protocol.ReplySize),
-		headPack:  make([]byte, conf.PacketSize),
+		pack:      &decode,
 		sendChan:  client.sendChan,
 		file:      file,
 		fileInfo:  fileInfo,

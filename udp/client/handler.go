@@ -47,7 +47,6 @@ type Handler interface {
 	OnReceive()
 	OnProto() error
 	OnSend() error
-	writeHead(b []byte) error
 	write() (int, error)
 }
 
@@ -57,7 +56,7 @@ type DefaultHandler struct {
 	proto *protocol.Proto
 
 	replyPack []byte
-	headPack  []byte
+	pack      *protocol.Encode
 
 	hash hash.Hash
 
@@ -69,18 +68,20 @@ type DefaultHandler struct {
 
 // OnProto discuss proto
 func (h *DefaultHandler) OnProto() error {
-	firstPacket := make([]byte, protocol.FirstPacketSize)
+	firstPacket := protocol.Encode{
+		Body: make([]byte, protocol.FirstPacketSize),
+	}
+	firstPacket.Buffer = bytes.NewBuffer(firstPacket.Body)
 
-	err := h.writeHead(firstPacket)
-	h.writeHead(h.headPack)
-	firstPacket[0] = byte(protocol.HeaderRequestType)
-	h.headPack[0] = byte(protocol.HeaderFileType)
+	firstPacket.Marshal(h.proto)
+	h.proto.HeaderType = protocol.HeaderFileType
+	h.pack.Marshal(h.proto)
 	nameReader := strings.NewReader(h.fileInfo.Name())
-	nameReader.Read(firstPacket[protocol.FixedHeaderSize:])
+	nameReader.Read(firstPacket.Body[protocol.FixedHeaderSize:])
 
-	log.Println("writeFirst - headBytes:", firstPacket[:h.proto.HeaderSize])
+	log.Println("writeFirst - headBytes:", firstPacket.Body[:h.proto.HeaderSize])
 
-	num, err := h.conn.Write(firstPacket)
+	num, err := h.conn.Write(firstPacket.Body)
 
 	if err != nil {
 		log.Fatal("writeFirst err:", err)
@@ -123,23 +124,23 @@ func (h *DefaultHandler) OnReceive() {
 
 // OnSend send file
 func (h *DefaultHandler) OnSend() error {
-	binary.LittleEndian.PutUint32(h.headPack[protocol.PackOrderOffset:], h.proto.PackOrder)
-	num, err := h.file.Read(h.headPack[protocol.FixedHeaderSize:])
+	binary.BigEndian.PutUint32(h.pack.Body[protocol.PackOrderOffset:], h.proto.PackOrder)
+	num, err := h.file.Read(h.pack.Body[protocol.FixedHeaderSize:])
 
 	if err != nil {
 		if err == io.EOF {
 			log.Println("WriteFile - 传送文件结束！")
 
-			h.hash.Write(h.headPack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+num])
+			h.hash.Write(h.pack.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+num])
 			hhash := h.hash.Sum(nil)
 
 			log.Println("文件MD5值：", hhash)
 
 			md5Reader := bytes.NewReader(hhash)
-			md5Reader.Read(h.headPack[protocol.FixedHeaderSize:])
-			h.headPack[0] = protocol.HeaderFileFinishType
+			md5Reader.Read(h.pack.Body[protocol.FixedHeaderSize:])
+			h.pack.Body[0] = protocol.HeaderFileFinishType
 
-			h.conn.Write(h.headPack)
+			h.conn.Write(h.pack.Body)
 			h.conn.Close()
 			h.file.Close()
 
@@ -152,11 +153,11 @@ func (h *DefaultHandler) OnSend() error {
 
 	log.Println("[SEND]:Read", num, "word.")
 
-	h.hash.Write(h.headPack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+num])
+	h.hash.Write(h.pack.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+num])
 
-	binary.LittleEndian.PutUint16(h.headPack[protocol.PackSizeOffset:], uint16(num))
+	binary.BigEndian.PutUint16(h.pack.Body[protocol.PackSizeOffset:], uint16(num))
 
-	num, err = h.conn.Write(h.headPack)
+	num, err = h.conn.Write(h.pack.Body)
 	if err != nil {
 		log.Fatal("WriteFile - 写了", num, "个字符。", "文件传输错误：", err)
 
@@ -168,19 +169,6 @@ func (h *DefaultHandler) OnSend() error {
 	return nil
 }
 
-// writeHead write proto to head
-func (h *DefaultHandler) writeHead(b []byte) error {
-	if len(b) < protocol.FixedHeaderSize {
-		return ErrLittleHead
-	}
-
-	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], h.proto.HeaderSize)
-	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], h.proto.PackSize)
-	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], h.proto.PackOrder)
-
-	return nil
-}
-
 func (h *DefaultHandler) write() (int, error) {
-	return h.conn.Write(h.headPack)
+	return h.conn.Write(h.pack.Body)
 }
