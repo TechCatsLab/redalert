@@ -34,11 +34,9 @@ const (
 	// HeaderTypeSize - Header Size
 	HeaderTypeSize  = 1
 	HeaderSize      = 2
-	FileSize        = 8
 	PackSize        = 2
-	PackCountSize   = 4
 	PackOrderSize   = 4
-	FixedHeaderSize = HeaderTypeSize + HeaderSize + FileSize + PackSize + PackCountSize + PackOrderSize
+	FixedHeaderSize = HeaderTypeSize + HeaderSize + PackSize + PackOrderSize
 
 	ReplySize = 4
 
@@ -51,10 +49,8 @@ const (
 	HeaderTypeOffset = 0
 	HeaderSizeOffset = HeaderTypeOffset + HeaderTypeSize
 	FileSizeOffset   = HeaderSizeOffset + HeaderSize
-	PackSizeOffset   = FileSizeOffset + FileSize
-	PackCountOffset  = PackSizeOffset + PackSize
-	PackOrderOffset  = PackCountOffset + PackCountSize
-	FileNameOffset   = PackOrderOffset + PackOrderSize
+	PackCountOffset  = FileSizeOffset + PackSize
+	FileNameOffset   = PackCountOffset + PackOrderSize
 
 	// DefaultUDPPort - default port
 	DefaultUDPPort = "17120"
