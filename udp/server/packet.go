@@ -35,9 +35,9 @@ import (
 	"net"
 	"os"
 
+	"bytes"
 	"redalert/protocol"
 	"redalert/udp/remote"
-	"bytes"
 )
 
 // Packet represent a UDP packet
@@ -160,7 +160,7 @@ func (p *Packet) handleFilePacket(s *Service) error {
 
 	p.Repeat = 0
 
-	if p.proto.PackOrder - rem.PackCount > 1 {
+	if p.proto.PackOrder-rem.PackCount > 1 {
 		return ErrInvalidOrder
 	}
 

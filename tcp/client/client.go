@@ -32,8 +32,8 @@ package client
 import (
 	"encoding/binary"
 	"fmt"
-	"net"
 	"log"
+	"net"
 
 	"redalert/protocol"
 )

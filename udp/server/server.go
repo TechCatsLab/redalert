@@ -32,8 +32,8 @@ package server
 import (
 	"encoding/binary"
 	"fmt"
-	"net"
 	"log"
+	"net"
 
 	"redalert/protocol"
 )

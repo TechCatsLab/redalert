@@ -32,7 +32,6 @@ package client
 import (
 	"bytes"
 	"crypto/md5"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -110,15 +109,20 @@ func (fi *FileInfo) packHead(b []byte) error {
 		return errInvalidHeaderSize
 	}
 
-	binary.LittleEndian.PutUint16(b[protocol.HeaderSizeOffset:], fi.client.proto.HeaderSize)
-	binary.LittleEndian.PutUint16(b[protocol.PackSizeOffset:], fi.client.proto.PackSize)
-	binary.LittleEndian.PutUint32(b[protocol.PackOrderOffset:], fi.client.proto.PackOrder)
+	firstPack := protocol.Encode{
+		Body: b,
+	}
+	firstPack.Buffer = bytes.NewBuffer(firstPack.Body)
+
+	// marshal
+	firstPack.Marshal(fi.client.proto)
 
 	return nil
 }
 
 // SendFile send file pack by size
 func (fi *FileInfo) SendFile(size int) error {
+
 	n, err := fi.file.Read(fi.filePack[protocol.FixedHeaderSize:])
 	if err != nil {
 		if err == io.EOF {
@@ -147,8 +151,12 @@ func (fi *FileInfo) SendFile(size int) error {
 	fi.client.proto.PackOrder++
 
 	fi.filePack[0] = protocol.HeaderFileType
-	binary.LittleEndian.PutUint16(fi.filePack[protocol.PackSizeOffset:], uint16(n))
-	binary.LittleEndian.PutUint32(fi.filePack[protocol.PackOrderOffset:], fi.client.proto.PackOrder)
+	filePacket := protocol.Encode{
+		Body: fi.filePack,
+	}
+	filePacket.Buffer = bytes.NewBuffer(filePacket.Body)
+
+	filePacket.Marshal(fi.client.proto)
 
 	fmt.Printf("[SendFile] send pack order is %v \n", fi.client.proto.PackOrder)
 	_, err = fi.client.conn.Write(fi.filePack)
