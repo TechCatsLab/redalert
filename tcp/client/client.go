@@ -33,10 +33,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"log"
 
 	"redalert/protocol"
-	"log"
-	"github.com/slimsag/godocmd/testdata"
 )
 
 const (

@@ -30,7 +30,6 @@
 package server
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -38,6 +37,7 @@ import (
 
 	"redalert/protocol"
 	"redalert/udp/remote"
+	"bytes"
 )
 
 // Packet represent a UDP packet
@@ -58,8 +58,6 @@ var (
 	ErrInvalidOrder = errors.New("Invalid pack order")
 	// ErrWrite error for write file error
 	ErrWrite = errors.New("write file fail")
-	// ErrReset error for reset timer failed
-	ErrReset = errors.New("failed with reset timer")
 	// ErrNotExists for client cannot find client address from client table
 	ErrNotExists = errors.New("Remote Address not exists")
 	// ErrHashNotMatch error for hash from client not match with hash which calculated by server
@@ -88,7 +86,14 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 // Read read packet and handle on the base of type
 func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	var err error
-	fmt.Printf("[Read] read bytes from %v \n", remote)
+
+	requestPack := protocol.Encode{
+		Body: p.Body,
+	}
+	requestPack.Buffer = bytes.NewBuffer(requestPack.Body)
+
+	// unmarshal to p.proto
+	requestPack.Unmarshal(&p.proto)
 
 	p.Remote = remote
 	p.Size = size
@@ -116,11 +121,7 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 
 // resolve request type pack and add the client who send this pack to online table
 func (p *Packet) handleRequest(s *Service) error {
-	headerSize := binary.LittleEndian.Uint16(p.Body[protocol.HeaderSizeOffset:protocol.FileSizeOffset])
-	packSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
-	filename := string(p.Body[protocol.FileNameOffset:headerSize])
-
-	fmt.Printf("file name is %s \n", filename)
+	filename := string(p.Body[protocol.FileNameOffset:p.proto.HeaderSize])
 
 	if _, ok := remote.Service.GetRemote(p.Remote); ok {
 		return ErrDuplicated
@@ -131,7 +132,7 @@ func (p *Packet) handleRequest(s *Service) error {
 		return err
 	}
 
-	p.Body = make([]byte, packSize)
+	p.Body = make([]byte, p.proto.PackSize)
 	p.Body[0] = protocol.HeaderRequestType
 	remote.Service.OnStartTransfer(filename, file, p.Remote)
 
@@ -140,9 +141,7 @@ func (p *Packet) handleRequest(s *Service) error {
 
 // resolve file type pack and write the content of pack to file
 func (p *Packet) handleFilePacket(s *Service) error {
-	order := binary.LittleEndian.Uint32(p.Body[protocol.PackOrderOffset:protocol.FixedHeaderSize])
-	availableSize := binary.LittleEndian.Uint16(p.Body[protocol.PackSizeOffset:protocol.PackCountOffset])
-	realBody := p.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+availableSize]
+	realBody := p.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+p.proto.PackSize]
 
 	fmt.Printf("[handleFilePacket] receive pack file from %v \n", p.Remote)
 
@@ -151,18 +150,17 @@ func (p *Packet) handleFilePacket(s *Service) error {
 		return ErrInvalidFilePack
 	}
 
-	fmt.Printf("[ORDER] is %d \n", order)
+	fmt.Printf("[ORDER] is %d \n", p.proto.PackOrder)
 
-	if order == rem.PackCount {
-		fmt.Printf("[Repeat packet] %d \n", order)
-		p.proto.PackOrder = order
+	if p.proto.PackOrder == rem.PackCount {
+		fmt.Printf("[Repeat packet] %d \n", p.proto.PackOrder)
 		p.Repeat = 1
 		return nil
 	}
 
 	p.Repeat = 0
 
-	if order-rem.PackCount > 1 {
+	if p.proto.PackOrder - rem.PackCount > 1 {
 		return ErrInvalidOrder
 	}
 
@@ -174,9 +172,6 @@ func (p *Packet) handleFilePacket(s *Service) error {
 	if n < len(realBody) {
 		return ErrWrite
 	}
-
-	p.proto.PackSize = availableSize
-	p.proto.PackOrder = order
 
 	return nil
 }
