@@ -156,15 +156,15 @@ func (c *Service) receive() {
 		err = pack.Read(c, size, remote)
 		if err == nil {
 			err = c.handler.OnPacket(pack)
-			binary.LittleEndian.PutUint32(reply, pack.proto.PackOrder)
-			if err == nil && pack.Body[0] != protocol.HeaderFileFinishType {
+			binary.BigEndian.PutUint32(reply, pack.proto.PackOrder)
+			if err == nil && pack.proto.HeaderType != protocol.HeaderFileFinishType {
 				c.Send(reply, pack.Remote)
 			}
 
 		}
 
 		if err != nil {
-			binary.LittleEndian.PutUint32(reply, protocol.ReplyError)
+			binary.BigEndian.PutUint32(reply, protocol.ReplyError)
 			c.Send(reply, pack.Remote)
 			c.handler.OnError(err, pack.Remote)
 		}
