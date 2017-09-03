@@ -99,31 +99,23 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 
 	p.Remote = remote
 	p.Size = size
-	headerType := uint8(p.Body[0])
 
 	switch {
-	case headerType == protocol.HeaderRequestType:
+	case p.proto.HeaderType == protocol.HeaderRequestType:
 		err = p.handleRequest(s)
 
-	case headerType == protocol.HeaderFileType:
+	case p.proto.HeaderType == protocol.HeaderFileType:
 		err = p.handleFilePacket(s)
 
-	case headerType == protocol.HeaderFileFinishType:
+	case p.proto.HeaderType == protocol.HeaderFileFinishType:
 		err = p.handleFileFinishPacket(s)
 	}
 
-	if err != nil {
-		return err
-	}
-
-	p.proto.HeaderType = uint8(p.Body[0])
-
-	return nil
+	return err
 }
 
 // resolve request type pack and add the client who send this pack to online table
 func (p *Packet) handleRequest(s *Service) error {
-	fmt.Println(p.proto.HeaderSize)
 	filename := string(p.Body[protocol.FileNameOffset:p.proto.HeaderSize])
 
 	if _, ok := remote.Service.GetRemote(p.Remote); ok {
@@ -136,7 +128,6 @@ func (p *Packet) handleRequest(s *Service) error {
 	}
 
 	p.Body = make([]byte, p.proto.PackSize)
-	p.Body[0] = protocol.HeaderRequestType
 	remote.Service.OnStartTransfer(filename, file, p.Remote)
 
 	return nil
