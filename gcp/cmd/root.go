@@ -45,8 +45,7 @@ var RootCmd = &cobra.Command{
 	Use:   "Transfer",
 	Short: "a send file util.",
 	Long: `
-Transfer is a CLI library for Go that transfer file from
-one side to other side.`,
+	Transfer is a CLI library in Go that transfers files from one side to another.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) {},

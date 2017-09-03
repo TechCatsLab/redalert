@@ -32,6 +32,7 @@ package client
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"hash"
 	"io"
 	"log"
@@ -102,7 +103,7 @@ func (h *DefaultHandler) OnReceive() {
 				return
 			}
 
-			packOrder := binary.LittleEndian.Uint32(h.replyPack)
+			packOrder := binary.BigEndian.Uint32(h.replyPack)
 
 			if protocol.ReplyFinish == packOrder {
 				log.Println("Pass file finish.")
@@ -131,7 +132,6 @@ func (h *DefaultHandler) OnSend() error {
 		if err == io.EOF {
 			log.Println("WriteFile - 传送文件结束！")
 
-			h.hash.Write(h.pack.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+num])
 			hhash := h.hash.Sum(nil)
 
 			log.Println("文件MD5值：", hhash)
@@ -140,7 +140,7 @@ func (h *DefaultHandler) OnSend() error {
 			md5Reader.Read(h.pack.Body[protocol.FixedHeaderSize:])
 			h.pack.Body[0] = protocol.HeaderFileFinishType
 
-			h.conn.Write(h.pack.Body)
+			h.write()
 			h.conn.Close()
 			h.file.Close()
 
@@ -157,7 +157,7 @@ func (h *DefaultHandler) OnSend() error {
 
 	binary.BigEndian.PutUint16(h.pack.Body[protocol.PackSizeOffset:], uint16(num))
 
-	num, err = h.conn.Write(h.pack.Body)
+	num, err = h.write()
 	if err != nil {
 		log.Fatal("WriteFile - 写了", num, "个字符。", "文件传输错误：", err)
 
@@ -170,5 +170,6 @@ func (h *DefaultHandler) OnSend() error {
 }
 
 func (h *DefaultHandler) write() (int, error) {
+	fmt.Println("[DEBUG]pack body:", h.pack.Body)
 	return h.conn.Write(h.pack.Body)
 }
