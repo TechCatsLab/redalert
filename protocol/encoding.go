@@ -50,9 +50,9 @@ func (e *Encode) Marshal(proto *Proto) {
 
 // Unmarshal read from body to proto
 func (e *Encode) Unmarshal(proto *Proto) {
-	e.Buffer.Reset()
-	binary.Read(e.Buffer, binary.BigEndian, proto.HeaderType)
-	binary.Read(e.Buffer, binary.BigEndian, proto.HeaderSize)
-	binary.Read(e.Buffer, binary.BigEndian, proto.PackSize)
-	binary.Read(e.Buffer, binary.BigEndian, proto.PackOrder)
+	//e.Buffer.Reset()
+	binary.Read(e.Buffer, binary.BigEndian, &proto.HeaderType)
+	binary.Read(e.Buffer, binary.BigEndian, &proto.HeaderSize)
+	binary.Read(e.Buffer, binary.BigEndian, &proto.PackSize)
+	binary.Read(e.Buffer, binary.BigEndian, &proto.PackOrder)
 }

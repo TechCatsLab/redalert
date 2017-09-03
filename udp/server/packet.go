@@ -42,7 +42,7 @@ import (
 
 // Packet represent a UDP packet
 type Packet struct {
-	proto  protocol.Proto
+	proto  *protocol.Proto
 	Body   []byte
 	Size   int
 	Repeat uint8 // flag of packet is if repeat packet
@@ -70,7 +70,7 @@ func NewPacket(cap int) *Packet {
 		Body:   make([]byte, cap),
 		Size:   0,
 		Remote: nil,
-		proto:  protocol.Proto{},
+		proto:  &protocol.Proto{},
 	}
 }
 
@@ -93,7 +93,9 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	requestPack.Buffer = bytes.NewBuffer(requestPack.Body)
 
 	// unmarshal to p.proto
-	requestPack.Unmarshal(&p.proto)
+	requestPack.Unmarshal(p.proto)
+
+	fmt.Println(requestPack)
 
 	p.Remote = remote
 	p.Size = size
@@ -121,6 +123,7 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 
 // resolve request type pack and add the client who send this pack to online table
 func (p *Packet) handleRequest(s *Service) error {
+	fmt.Println(p.proto.HeaderSize)
 	filename := string(p.Body[protocol.FileNameOffset:p.proto.HeaderSize])
 
 	if _, ok := remote.Service.GetRemote(p.Remote); ok {
