@@ -69,7 +69,6 @@ to quickly create a Cobra application.`,
 			conf := server.Conf{
 				Address:    serverAddress,
 				Port:       serverPort,
-				PacketSize: serverPackSize,
 				CacheCount: serverCacheSize,
 			}
 

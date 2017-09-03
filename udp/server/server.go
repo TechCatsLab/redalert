@@ -47,7 +47,6 @@ const (
 type Conf struct {
 	Address    string // Local Address
 	Port       string // Local Port
-	PacketSize int    // Packet max size
 	CacheCount int    // Cache size
 }
 
@@ -56,7 +55,6 @@ type Service struct {
 	conf    *Conf
 	conn    *net.UDPConn
 	handler Handler
-	buffer  []*Packet
 	sender  chan *Packet
 	close   chan struct{}
 }
@@ -91,7 +89,6 @@ func NewServer(conf *Conf) *Service {
 		conf:    conf,
 		conn:    conn,
 		handler: &hand,
-		buffer:  make([]*Packet, conf.PacketSize),
 		sender:  make(chan *Packet, 256),
 		close:   make(chan struct{}),
 	}
@@ -119,7 +116,6 @@ func (c *Service) HandleClient() {
 
 		case pack := <-c.sender:
 			err := pack.WriteToUDP(c.conn)
-			fmt.Printf("[Send] send a packet to %v \n", pack.Remote)
 
 			if err != nil {
 				c.handler.OnError(err, nil)
@@ -148,19 +144,18 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 func (c *Service) receive() {
 	for {
 		size, remote, err := c.conn.ReadFromUDP(pack.Body)
-		fmt.Printf("[receive] size %d FROM  %v \n", size, remote)
+		fmt.Printf("[Receive] size %d FROM  %v, pack body size %d and %v\n", size, remote, len(pack.Body), pack.Body)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
 
-		err = pack.Read(c, size, remote)
+		err = pack.Read(size, remote)
 		if err == nil {
 			err = c.handler.OnPacket(pack)
-			binary.BigEndian.PutUint32(reply, pack.proto.PackOrder)
 			if err == nil && pack.proto.HeaderType != protocol.HeaderFileFinishType {
+				binary.BigEndian.PutUint32(reply, pack.proto.PackOrder)
 				c.Send(reply, pack.Remote)
 			}
-
 		}
 
 		if err != nil {

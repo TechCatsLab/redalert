@@ -84,9 +84,28 @@ func (p *Packet) WriteToUDP(conn *net.UDPConn) error {
 }
 
 // Read read packet and handle on the base of type
-func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
+func (p *Packet) Read(size int, remote *net.UDPAddr) error {
 	var err error
 
+	p.Remote = remote
+	p.Size = size
+
+	switch {
+	case p.Body[0] == protocol.HeaderRequestType:
+		err = p.handleRequest()
+
+	case p.Body[0] == protocol.HeaderFileType:
+		err = p.handleFilePacket()
+
+	case p.Body[0] == protocol.HeaderFileFinishType:
+		err = p.handleFileFinishPacket()
+	}
+
+	return err
+}
+
+// resolve request type pack and add the client who send this pack to online table
+func (p *Packet) handleRequest() error {
 	requestPack := protocol.Encode{
 		Body: p.Body,
 	}
@@ -95,27 +114,6 @@ func (p *Packet) Read(s *Service, size int, remote *net.UDPAddr) error {
 	// unmarshal to p.proto
 	requestPack.Unmarshal(p.proto)
 
-	fmt.Println(requestPack)
-
-	p.Remote = remote
-	p.Size = size
-
-	switch {
-	case p.proto.HeaderType == protocol.HeaderRequestType:
-		err = p.handleRequest(s)
-
-	case p.proto.HeaderType == protocol.HeaderFileType:
-		err = p.handleFilePacket(s)
-
-	case p.proto.HeaderType == protocol.HeaderFileFinishType:
-		err = p.handleFileFinishPacket(s)
-	}
-
-	return err
-}
-
-// resolve request type pack and add the client who send this pack to online table
-func (p *Packet) handleRequest(s *Service) error {
 	filename := string(p.Body[protocol.FileNameOffset:p.proto.HeaderSize])
 
 	if _, ok := remote.Service.GetRemote(p.Remote); ok {
@@ -127,17 +125,23 @@ func (p *Packet) handleRequest(s *Service) error {
 		return err
 	}
 
-	p.Body = make([]byte, p.proto.PackSize)
 	remote.Service.OnStartTransfer(filename, file, p.Remote)
-
+	p.Body = make([]byte, p.proto.PackSize)
+	fmt.Println(len(p.Body))
 	return nil
 }
 
 // resolve file type pack and write the content of pack to file
-func (p *Packet) handleFilePacket(s *Service) error {
-	realBody := p.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+p.proto.PackSize]
+func (p *Packet) handleFilePacket() error {
+	requestPack := protocol.Encode{
+		Body: p.Body,
+	}
+	requestPack.Buffer = bytes.NewBuffer(requestPack.Body)
 
-	fmt.Printf("[handleFilePacket] receive pack file from %v \n", p.Remote)
+	// unmarshal to p.proto
+	requestPack.Unmarshal(p.proto)
+
+	realBody := p.Body[protocol.FixedHeaderSize : protocol.FixedHeaderSize+p.proto.PackSize]
 
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
@@ -171,7 +175,7 @@ func (p *Packet) handleFilePacket(s *Service) error {
 }
 
 // when file transfer finish, calculate hash of file and compare with hash send by client
-func (p *Packet) handleFileFinishPacket(s *Service) error {
+func (p *Packet) handleFileFinishPacket() error {
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrNotExists
@@ -179,6 +183,7 @@ func (p *Packet) handleFileFinishPacket(s *Service) error {
 
 	hash := rem.Hash.Sum(nil)
 	fmt.Print("receive finish \n")
+	fmt.Printf("Server hash is %v  \n", hash)
 	if string(p.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) != string(hash) {
 		return ErrHashNotMatch
 	}
