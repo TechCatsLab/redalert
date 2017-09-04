@@ -152,7 +152,8 @@ func (c *Service) receive() {
 		err = pack.Read(size, remote)
 		if err == nil {
 			err = c.handler.OnPacket(pack)
-			if err == nil && pack.proto.HeaderType != protocol.HeaderFileFinishType {
+			if err == nil && pack.proto.HeaderType != protocol.HeaderFileFinishType &&
+				pack.proto.HeaderType != 0 {
 				binary.BigEndian.PutUint32(reply, pack.proto.PackOrder)
 				c.Send(reply, pack.Remote)
 			}
