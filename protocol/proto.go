@@ -69,7 +69,7 @@ const (
 	// DefaultDir is default dir for save file
 	DefaultDir = "./"
 
-	FirstPacketSize = 1 << 9
+	FirstPacketSize = 1 << 10
 	MaxPacketSize   = 1 << 13
 )
 

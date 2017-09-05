@@ -71,7 +71,7 @@ func (r *remoteAddrTable) OnStartTransfer(filename string, file *os.File, remote
 	rem := Remote{
 		FileName: filename,
 		File:     file,
-		Timer: time.AfterFunc(1*time.Second, func() {
+		Timer: time.AfterFunc(2*time.Second, func() {
 			r.Close(remote, errTimeOut)
 		}),
 		Hash: md5.New(),
@@ -95,7 +95,7 @@ func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) error {
 	key := remote.IP.String() + ":" + string(remote.Port)
 	rem, _ := r.remote[key]
 
-	rem.Timer.Reset(1 * time.Second)
+	rem.Timer.Reset(2 * time.Second)
 	if len(pack) == 0 {
 		return nil
 	}
@@ -113,7 +113,7 @@ func (r *remoteAddrTable) Update(remote *net.UDPAddr, pack []byte) error {
 // Close file and delete map
 func (r *remoteAddrTable) Close(remote *net.UDPAddr, err error) {
 	key := remote.IP.String() + ":" + string(remote.Port)
-	fmt.Printf("[Close] remote %v \n", remote)
+	fmt.Printf("[Close] remote %v with error: %v \n", remote, err)
 	rem, ok := r.remote[key]
 	if !ok {
 		return

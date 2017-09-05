@@ -58,7 +58,7 @@ func (sp *Provider) OnError(err error, addr *net.UDPAddr) {
 
 // OnPacket update client info in the online table according to pack HeaderType
 func (sp *Provider) OnPacket(pack *Packet) error {
-	fmt.Printf("[OnPacket] pack type is %d \n", pack.proto.HeaderType)
+	fmt.Printf("[OnPacket] pack type is %d, %d, %d \n", pack.proto.HeaderType, len(pack.Body), cap(pack.Body))
 
 	if pack.proto.HeaderType == protocol.HeaderFileFinishType || pack.Repeat == 1 {
 		return nil

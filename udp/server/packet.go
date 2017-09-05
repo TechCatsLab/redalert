@@ -126,8 +126,7 @@ func (p *Packet) handleRequest() error {
 	}
 
 	remote.Service.OnStartTransfer(filename, file, p.Remote)
-	p.Body = make([]byte, p.proto.PackSize)
-	fmt.Println(len(p.Body))
+	//p.Body = make([]byte, p.proto.PackSize)
 	return nil
 }
 
@@ -176,6 +175,14 @@ func (p *Packet) handleFilePacket() error {
 
 // when file transfer finish, calculate hash of file and compare with hash send by client
 func (p *Packet) handleFileFinishPacket() error {
+	finishPack := protocol.Encode{
+		Body: p.Body,
+	}
+	finishPack.Buffer = bytes.NewBuffer(finishPack.Body)
+
+	// unmarshal to p.proto
+	finishPack.Unmarshal(p.proto)
+
 	rem, ok := remote.Service.GetRemote(p.Remote)
 	if !ok {
 		return ErrNotExists
@@ -190,7 +197,6 @@ func (p *Packet) handleFileFinishPacket() error {
 
 	remote.Service.Close(p.Remote, nil)
 
-	p = pack
 	p.proto.PackOrder = 0
 	p.proto.PackSize = 0
 

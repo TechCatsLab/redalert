@@ -144,16 +144,19 @@ func (c *Service) Send(body []byte, remote *net.UDPAddr) {
 func (c *Service) receive() {
 	for {
 		size, remote, err := c.conn.ReadFromUDP(pack.Body)
-		fmt.Printf("[Receive] size %d FROM  %v, pack body size %d and %v\n", size, remote, len(pack.Body), pack.Body)
+		fmt.Printf("[Receive] size -----> %d FROM  %v, pack body size %d and %v\n", size, remote, len(pack.Body), pack.Body)
 		if err != nil {
 			c.handler.OnError(err, remote)
 		}
 
 		err = pack.Read(size, remote)
+		if pack.proto.HeaderType == protocol.HeaderFileFinishType {
+			continue
+		}
+
 		if err == nil {
 			err = c.handler.OnPacket(pack)
-			if err == nil && pack.proto.HeaderType != protocol.HeaderFileFinishType &&
-				pack.proto.HeaderType != 0 {
+			if err == nil {
 				binary.BigEndian.PutUint32(reply, pack.proto.PackOrder)
 				c.Send(reply, pack.Remote)
 			}
