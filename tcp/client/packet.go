@@ -133,7 +133,7 @@ func (fi *FileInfo) SendFile(size int) error {
 			reader.Read(fi.filePack[protocol.FixedHeaderSize:])
 			fi.filePack[0] = protocol.HeaderFileFinishType
 
-			_, err = fi.client.conn.Write(fi.filePack)
+			_, err = fi.client.conn.Write(fi.filePack[:protocol.FixedHeaderSize+16])
 			if err != nil {
 				return err
 			}

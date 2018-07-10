@@ -72,18 +72,18 @@ func (s *Session) Start() {
 
 		if s.Pack.Body[0] == protocol.HeaderFileFinishType {
 			md5hash := s.hash.Sum(nil)
-			//if string(md5hash) != string(s.Pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
-			//	log.Println("[DEBUG]:MD5 error.")
-			//
-			//	s.file.Close()
-			//	os.Remove(s.file.Name())
-			//}
+			if string(md5hash) != string(s.Pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
+				log.Println("[DEBUG]:MD5 error.")
 
-			log.Printf("[DEBUG]:Recive file finish.hash %x", md5hash)
+				s.file.Close()
+				os.Remove(s.file.Name())
+			} else {
+				log.Printf("[DEBUG]:Recive file finish.hash %x", md5hash)
 
-			s.file.Close()
-			s.CountChan <- false
-			return
+				s.file.Close()
+				s.CountChan <- false
+				return
+			}
 		}
 
 		log.Println("[DEBUG]:Before judge order", s.proto.PackOrder)
