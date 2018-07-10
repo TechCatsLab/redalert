@@ -35,7 +35,7 @@ import (
 	"log"
 	"net"
 
-	"redalert/protocol"
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 const (
@@ -122,13 +122,14 @@ func (c *Client) receive(conn *net.TCPConn) {
 		c.handle.OnError(err)
 	}
 
+	c.proto.HeaderSize = protocol.FixedHeaderSize
 	for {
 		_, err := conn.Read(c.info.replyPack)
 		if err != nil {
 			c.handle.OnError(err)
 		}
 
-		packOrder := binary.LittleEndian.Uint32(c.info.replyPack)
+		packOrder := binary.BigEndian.Uint32(c.info.replyPack)
 		fmt.Printf("[RECEIVE] pack order %d \n", packOrder)
 
 		if packOrder == protocol.ReplyError {

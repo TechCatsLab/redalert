@@ -32,6 +32,7 @@ package client
 import (
 	"fmt"
 	"os"
+	"sync"
 )
 
 type handler interface {
@@ -41,12 +42,15 @@ type handler interface {
 
 // Provider provide service
 type Provider struct {
+	sync.Mutex
 	client *Client
 }
 
 // OnError handle error
 // warning: when call this function program will be ended
 func (ph *Provider) OnError(err error) {
+	ph.Lock()
+	defer ph.Unlock()
 	fmt.Printf("[ERROR] client crash with error %v \n", err)
 	ph.client.info.file.Close()
 	ph.client.conn.Close()
@@ -56,6 +60,9 @@ func (ph *Provider) OnError(err error) {
 
 // OnClose handle when close client
 func (ph *Provider) OnClose() {
+	ph.Lock()
+	defer ph.Unlock()
+	fmt.Println("[WARN] client conn closed")
 	ph.client.info.file.Close()
 	ph.client.conn.Close()
 

@@ -32,9 +32,10 @@ package server
 import (
 	"fmt"
 	"net"
-	"redalert/protocol"
-	"redalert/udp/remote"
 	"time"
+
+	"github.com/TechCatsLab/redalert/protocol"
+	"github.com/TechCatsLab/redalert/udp/remote"
 )
 
 // Handler represent operations by UDP service

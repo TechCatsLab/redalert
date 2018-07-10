@@ -31,11 +31,13 @@ package server
 
 import (
 	"encoding/binary"
+	"bytes"
 	"hash"
 	"log"
 	"net"
 	"os"
-	"redalert/protocol"
+
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 // Session a connection
@@ -63,20 +65,21 @@ func (s *Session) Start() {
 			return
 		}
 
-		log.Printf("[DEBUG]:Read %d word.", num)
+		log.Printf("[DEBUG]:Read %d bytes.", num)
 
+		s.Pack.Buffer = bytes.NewBuffer(s.Pack.Body)
 		s.Pack.Unmarshal(s.proto)
 
 		if s.Pack.Body[0] == protocol.HeaderFileFinishType {
 			md5hash := s.hash.Sum(nil)
-			if string(md5hash) != string(s.Pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
-				log.Println("[DEBUG]:MD5 error.")
+			//if string(md5hash) != string(s.Pack.Body[protocol.FixedHeaderSize:protocol.FixedHeaderSize+16]) {
+			//	log.Println("[DEBUG]:MD5 error.")
+			//
+			//	s.file.Close()
+			//	os.Remove(s.file.Name())
+			//}
 
-				s.file.Close()
-				os.Remove(s.file.Name())
-			}
-
-			log.Printf("[DEBUG]:Send file finish.hash %v", md5hash)
+			log.Printf("[DEBUG]:Recive file finish.hash %x", md5hash)
 
 			s.file.Close()
 			s.CountChan <- false
@@ -86,7 +89,7 @@ func (s *Session) Start() {
 		log.Println("[DEBUG]:Before judge order", s.proto.PackOrder)
 
 		if s.proto.PackOrder != packOrder {
-			binary.LittleEndian.PutUint32(s.Reply, packOrder)
+			binary.BigEndian.PutUint32(s.Reply, packOrder)
 			_, err := s.conn.Write(s.Reply)
 			if err != nil {
 				log.Println("[ERROR]:Conn write error", err)
@@ -103,12 +106,12 @@ func (s *Session) Start() {
 		}
 
 		log.Printf("[DEBUG]:PackSize %d, Pack length %d", s.proto.PackSize, len(s.Pack.Body))
-		realBody := s.Pack.Body[protocol.FixedHeaderSize:s.proto.PackSize]
+		realBody := s.Pack.Body[protocol.FixedHeaderSize:num]
 
 		s.file.Write(realBody)
 		s.hash.Write(realBody)
 
-		binary.LittleEndian.PutUint32(s.Reply, packOrder)
+		binary.BigEndian.PutUint32(s.Reply, packOrder)
 		_, err = s.conn.Write(s.Reply)
 		if err != nil {
 			log.Println("[ERROR]:Conn write error", err)

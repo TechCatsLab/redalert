@@ -40,7 +40,7 @@ import (
 	"os"
 	"strings"
 
-	"redalert/protocol"
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 // Handler interface

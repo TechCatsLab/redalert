@@ -39,7 +39,7 @@ import (
 	"os"
 	"strings"
 
-	"redalert/protocol"
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 // FileInfo - TCP pack information
@@ -122,11 +122,12 @@ func (fi *FileInfo) packHead(b []byte) error {
 
 // SendFile send file pack by size
 func (fi *FileInfo) SendFile(size int) error {
-
 	n, err := fi.file.Read(fi.filePack[protocol.FixedHeaderSize:])
 	if err != nil {
 		if err == io.EOF {
 			hashResult := fi.hash.Sum(nil)
+
+			fmt.Printf("[DEBUG]:Send file finish.hash %x\n", hashResult)
 
 			reader := bytes.NewReader(hashResult)
 			reader.Read(fi.filePack[protocol.FixedHeaderSize:])
@@ -143,23 +144,23 @@ func (fi *FileInfo) SendFile(size int) error {
 		return err
 	}
 
-	_, err = fi.hash.Write(fi.filePack[protocol.FixedHeaderSize : protocol.FixedHeaderSize+n])
+	_, err = fi.hash.Write(fi.filePack[protocol.FixedHeaderSize:protocol.FixedHeaderSize+n])
 	if err != nil {
 		return err
 	}
 
 	fi.client.proto.PackOrder++
 
-	fi.filePack[0] = protocol.HeaderFileType
 	filePacket := protocol.Encode{
 		Body: fi.filePack,
 	}
 	filePacket.Buffer = bytes.NewBuffer(filePacket.Body)
 
 	filePacket.Marshal(fi.client.proto)
+	fi.filePack[0] = protocol.HeaderFileType
 
 	fmt.Printf("[SendFile] send pack order is %v \n", fi.client.proto.PackOrder)
-	_, err = fi.client.conn.Write(fi.filePack)
+	_, err = fi.client.conn.Write(fi.filePack[:protocol.FixedHeaderSize+n])
 	if err != nil {
 		return err
 	}

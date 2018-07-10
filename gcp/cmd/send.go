@@ -31,9 +31,9 @@ package cmd
 
 import (
 	"fmt"
-	tcp "redalert/tcp/client"
-	"redalert/udp/client"
 
+	tcp "github.com/TechCatsLab/redalert/tcp/client"
+	"github.com/TechCatsLab/redalert/udp/client"
 	"github.com/spf13/cobra"
 )
 

@@ -32,8 +32,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	tcp "redalert/tcp/server"
-	"redalert/udp/server"
+	tcp "github.com/TechCatsLab/redalert/tcp/server"
+	"github.com/TechCatsLab/redalert/udp/server"
 )
 
 var (

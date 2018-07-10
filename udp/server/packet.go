@@ -34,10 +34,10 @@ import (
 	"fmt"
 	"net"
 	"os"
-
 	"bytes"
-	"redalert/protocol"
-	"redalert/udp/remote"
+
+	"github.com/TechCatsLab/redalert/protocol"
+	"github.com/TechCatsLab/redalert/udp/remote"
 )
 
 // Packet represent a UDP packet

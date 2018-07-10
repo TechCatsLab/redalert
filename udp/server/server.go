@@ -35,7 +35,7 @@ import (
 	"log"
 	"net"
 
-	"redalert/protocol"
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 const (

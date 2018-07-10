@@ -39,7 +39,7 @@ import (
 	"os"
 	"time"
 
-	"redalert/protocol"
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 const (

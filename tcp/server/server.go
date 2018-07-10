@@ -35,8 +35,9 @@ import (
 	"log"
 	"net"
 	"os"
-	"redalert/protocol"
 	"time"
+
+	"github.com/TechCatsLab/redalert/protocol"
 )
 
 // Server tcp server
@@ -106,7 +107,7 @@ func (s *Server) onConn(conn *net.TCPConn) {
 
 	firstDecode.Unmarshal(&proto)
 
-	log.Println("[CONN]:Begin create file, Proto:", proto)
+	log.Printf("[CONN]:Begin create file, Proto: %#v\n", proto)
 
 	filename := string(firstDecode.Body[protocol.FileNameOffset:proto.HeaderSize])
 
@@ -119,7 +120,7 @@ func (s *Server) onConn(conn *net.TCPConn) {
 	log.Printf("[DEBUG]:File name %s", filename)
 
 	decode := protocol.Encode{
-		Body: make([]byte, protocol.PackSize),
+		Body: make([]byte, proto.PackSize),
 	}
 
 	decode.Buffer = bytes.NewBuffer(decode.Body)
@@ -155,9 +156,9 @@ func countConn(s *Server) {
 				s.totalConn--
 			}
 
-			if s.totalConn == 0 {
-				os.Exit(0)
-			}
+			//if s.totalConn == 0 {
+			//	os.Exit(0)
+			//}
 		}
 	}()
 }

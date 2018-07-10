@@ -30,7 +30,7 @@
 package main
 
 import (
-	"redalert/gcp/cmd"
+	"github.com/TechCatsLab/redalert/gcp/cmd"
 )
 
 func main() {
